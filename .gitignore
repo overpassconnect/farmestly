@@ -1,0 +1,300 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+**/Pods/
+
+**/uploads/
+
+**/deploy_temp/
+
+# Testing
+coverage/
+*.lcov
+.nyc_output
+
+# Production builds
+dist/
+dist-ssr/
+build/
+out/
+*.local
+**/temp/
+**/tmp/
+**/uploads/
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+.production.env
+.staging.env
+.development.env
+.test.env
+# IDE - VSCode
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.code-workspace
+
+# IDE - IntelliJ/WebStorm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# IDE - Sublime
+*.sublime-project
+*.sublime-workspace
+
+# System files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.directory
+
+# React specific
+.eslintcache
+.parcel-cache
+
+# Next.js specific (if using Next.js)
+.next/
+out/
+.vercel
+next-env.d.ts
+
+# Gatsby specific (if using Gatsby)
+.cache/
+public/
+
+# Vite specific
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# React Native specific
+# iOS
+ios/Pods/
+ios/build/
+ios/*.xcworkspace/xcuserdata/
+ios/*.xcodeproj/xcuserdata/
+ios/*.xcodeproj/project.xcworkspace/xcuserdata/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcuserstate
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Android
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/app/debug/
+android/app/release/
+android/gradle.properties
+android/app/*.keystore
+!android/app/debug.keystore
+*.jks
+*.keystore
+android/.idea/
+*.iml
+android/app/.cxx/
+.cxx/
+.cxx
+
+# React Native - Metro
+.metro-health-check*
+.expo/
+dist/
+web-build/
+
+# React Native - Fastlane
+*/fastlane/report.xml
+*/fastlane/Preview.html
+*/fastlane/screenshots
+*/fastlane/test_output
+
+# Buck
+buck-out/
+.buckd/
+*.keystore.properties
+
+# Monorepo specific
+lerna-debug.log
+packages/*/dist/
+packages/*/build/
+packages/*/node_modules/
+packages/*/.turbo/
+apps/*/dist/
+apps/*/build/
+apps/*/node_modules/
+apps/*/.turbo/
+services/*/dist/
+services/*/build/
+services/*/node_modules/
+services/*/.turbo/
+
+# Turbo
+.turbo/
+
+# Rush
+common/temp/
+*.build.log
+*.build.error.log
+common/autoinstallers/*/.npmrc
+
+# Nx
+dist/
+tmp/
+/out-tsc/
+.nx/
+
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# Storybook
+storybook-static/
+*storybook.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+**/fullcodes.xml
+
+# Database
+*.sqlite
+*.sqlite3
+**/*.db
+
+**/.claude/
+
+# Logs
+logs/
+*.log
+
+# SSL certificates
+*.pem
+*.p12
+*.key
+*.crt
+
+# Python (if using any Python scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# Misc
+.cache/
+.temp/
+.tmp/
+.history
+.sonarlint/
+.husky/_
+
+# Documentation build
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+_book/
+.docusaurus/
+
+
+# If using yarn only:
+package-lock.json
+
+
+# Serverless
+.serverless/
+.webpack/
+
+# Firebase
+.firebase/
+.firebaserc
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Docker
+docker-compose.override.yml
+
+# E2E testing
+test-results/
+playwright-report/
+playwright/.cache/
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
+
+# Generated files
+*.generated.ts
+*.generated.tsx
+*.gen.ts
+*.gen.tsx
+
+# Sentry
+.sentryclirc
+
+# GraphQL Codegen
+generated/
+
+# Monorepo workspace files (keep these)
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions

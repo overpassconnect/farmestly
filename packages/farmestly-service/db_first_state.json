@@ -1,0 +1,17 @@
+{
+	"metadata": {
+		"username": null,
+		"latestSession": {
+			"session_id": null,
+			"expires_at": null
+		},
+		"setupCompleted": false,
+		"password": null
+	},
+	"content": {
+		"farmName": "This is my farm",
+		"fields": [ ],
+		"farmData": { },
+		"jobTemplates": [ ]
+	}
+}

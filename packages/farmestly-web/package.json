@@ -1,0 +1,10 @@
+{
+  "name": "app-frontend-web",
+  "version": "1.0.0",
+  "description": "React webpack boilerplate for VM development",
+  "private": true,
+  "scripts": {
+    "start": "webpack --watch --mode development --env buildroot=/var/www/html/",
+    "build": "webpack --mode production --env buildroot=/var/www/html/"
+  }
+}
