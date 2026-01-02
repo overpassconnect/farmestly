@@ -1,0 +1,191 @@
+{
+	"required": "Required",
+	"nameRequired": "Name is required",
+	"makeRequired": "Make is required",
+	"licenceNoInvalid": "License number is invalid",
+	"powerOnHoursMustBeNumber": "Power-on hours must be a number",
+
+	"username": {
+		"required": "Username is required",
+		"empty": "Username cannot be empty",
+		"length": "Username must be 3-63 characters",
+		"minLength": "Username must be at least 5 letters",
+		"noWhitespace": "Username cannot contain spaces",
+		"alreadyExists": "This username is already taken"
+	},
+
+	"password": {
+		"required": "Password is required",
+		"empty": "Password cannot be empty",
+		"length": "Password must be 2-64 characters",
+		"minLength": "Password must be at least 8 characters",
+		"noWhitespace": "Password cannot contain spaces"
+	},
+
+	"email": {
+		"required": "Email is required",
+		"invalid": "Please enter a valid email address",
+		"valid": "Please enter a valid email address"
+	},
+
+	"phone": {
+		"required": "Phone number is required",
+		"invalid": "Please enter a valid phone number",
+		"valid": "Please enter a valid phone number"
+	},
+
+	"auth": {
+		"invalidCredentials": "Invalid username or password. Please try again."
+	},
+
+	"id": {
+		"required": "ID is required",
+		"mustBeInteger": "ID must be a number"
+	},
+
+	"field": {
+		"nameRequired": "Field name is required",
+		"nameEmpty": "Field name cannot be empty",
+		"nameMinLength": "Field name must be at least 2 characters",
+		"nameMaxLength": "Name cannot exceed 50 characters",
+		"nameInvalid": "Field name is invalid",
+		"legalNumberInvalid": "Field legal number is invalid",
+		"legalNumberMustBeNumbers": "Field legal number must contain only digits",
+		"pointsRequired": "Field points are required",
+		"pointsMinLength": "Field must have at least 3 points"
+	},
+
+	"farm": {
+		"nameRequired": "Farm name is required",
+		"nameEmpty": "Farm name cannot be empty",
+		"farmingTypeInvalid": "Farming type is invalid"
+	},
+
+	"crop": {
+		"required": "Crop is required",
+		"empty": "Crop cannot be empty",
+		"varietyInvalid": "Variety is invalid"
+	},
+
+	"harvest": {
+		"kgRequired": "Harvested amount is required",
+		"kgMin": "Amount must be greater than 0",
+		"kgMustBeNumber": "Harvested amount must be a number"
+	},
+
+	"time": {
+		"hoursRequired": "Hours is required",
+		"hoursMustBeNumber": "Hours must be a number",
+		"hoursMustBePositive": "Hours must be positive",
+		"minutesRequired": "Minutes is required",
+		"minutesMustBeNumber": "Minutes must be a number",
+		"minutesMustBePositive": "Minutes must be positive",
+		"minutesMax": "Minutes must be less than 60",
+		"secondsRequired": "Seconds is required",
+		"secondsMustBeNumber": "Seconds must be a number",
+		"secondsMustBePositive": "Seconds must be positive",
+		"secondsMax": "Seconds must be less than 60"
+	},
+
+	"group": {
+		"nameRequired": "Group name is required",
+		"nameEmpty": "Group name cannot be empty",
+		"nameMinLength": "Group name must be at least 2 characters",
+		"nameMaxLength": "Group name cannot exceed 50 characters"
+	},
+
+	"equipment": {
+		"nameRequired": "Name is required",
+		"nameEmpty": "Name cannot be empty",
+		"makeRequired": "Make is required",
+		"makeEmpty": "Make cannot be empty",
+		"typeRequired": "Type is required",
+		"typeEmpty": "Type cannot be empty",
+		"brandRequired": "Brand is required",
+		"brandEmpty": "Brand cannot be empty",
+		"modelRequired": "Model is required",
+		"modelEmpty": "Model cannot be empty",
+		"licenceNoInvalid": "License number is invalid",
+		"powerOnHoursRequired": "Power-on hours is required",
+		"powerOnHoursMustBeNumber": "Power-on hours must be a number",
+		"powerOnHoursMustBePositive": "Power-on hours must be positive",
+		"tankCapacityRequired": "Tank capacity is required when used for spraying"
+	},
+
+	"job": {
+		"nameRequired": "Job name is required",
+		"nameEmpty": "Job name cannot be empty",
+		"fieldIdRequired": "Field ID is required",
+		"fieldIdEmpty": "Field ID cannot be empty",
+		"typeRequired": "Job type is required",
+		"typeEmpty": "Job type cannot be empty",
+		"startTimeRequired": "Start time is required",
+		"startTimeInvalid": "Start time must be a valid date"
+	},
+
+	"spray": {
+		"sprayerIdRequired": "Sprayer ID is required",
+		"sprayerIdEmpty": "Sprayer ID cannot be empty",
+		"sprayerTypeRequired": "Sprayer type is required",
+		"sprayerTypeInvalid": "Sprayer type must be 'machine' or 'attachment'",
+		"tankCapacityRequired": "Tank capacity is required",
+		"tankCapacityInvalid": "Tank capacity must be greater than 0",
+		"carrierRateRequired": "Carrier rate is required",
+		"carrierRateInvalid": "Carrier rate must be greater than 0",
+		"fieldAreaRequired": "Field area is required",
+		"fieldAreaInvalid": "Field area must be greater than 0",
+		"productsRequired": "Products are required",
+		"productsEmpty": "At least one product is required",
+		"productIdRequired": "Product ID is required",
+		"productIdEmpty": "Product ID cannot be empty",
+		"productRateRequired": "Product rate is required",
+		"productRateInvalid": "Product rate must be greater than 0",
+		"productUnitRequired": "Product unit is required",
+		"productUnitInvalid": "Product unit must be L, mL, kg, or g"
+	},
+
+	"product": {
+		"idRequired": "Product ID is required",
+		"idEmpty": "Product ID cannot be empty",
+		"nameRequired": "Product name is required",
+		"nameEmpty": "Product name cannot be empty",
+		"typeRequired": "Product type is required",
+		"typeInvalid": "Invalid product type",
+		"defaultRateInvalid": "Default rate must be greater than 0",
+		"defaultRateUnitInvalid": "Invalid rate unit",
+		"reiInvalid": "REI must be a positive number",
+		"phiInvalid": "PHI must be a positive number",
+		"notesTooLong": "Notes cannot exceed 500 characters"
+	},
+
+	"date": {
+		"required": "Date is required",
+		"invalid": "Please enter a valid date"
+	},
+
+	"quantity": {
+		"required": "Quantity is required",
+		"mustBeNumber": "Quantity must be a number",
+		"mustBePositive": "Quantity must be positive"
+	},
+
+	"notes": {
+		"maxLength": "Notes cannot exceed 500 characters"
+	},
+
+	"generic": {
+		"mustBeNumber": "Must be a number",
+		"mustBePositive": "Must be positive",
+		"mustBeLessThan60": "Must be less than 60"
+	},
+
+	"irrigation": {
+		"irrigatorRequired": "Irrigator is required",
+		"pleaseSelectIrrigator": "Please select an irrigator"
+	},
+
+	"sow": {
+		"cropRequired": "Crop name is required",
+		"eppoCodeInvalid": "EPPO code must be 5-6 characters"
+	}
+}
