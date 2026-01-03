@@ -64,6 +64,7 @@ router.get('/precheck', async (req, res) => {
 
 		let canEmail = true;
 		let canDownload = true;
+		let emailNotVerified = false;
 
 		if (count === 0) {
 			canEmail = false;
@@ -75,7 +76,13 @@ router.get('/precheck', async (req, res) => {
 			canEmail = false;
 		}
 
-		res.json(ok({ canEmail, canDownload }));
+		// Check if email is verified for email delivery
+		if (canEmail && (!account.metadata.email || account.metadata.emailVerified !== true)) {
+			canEmail = false;
+			emailNotVerified = !account.metadata.email ? false : true;
+		}
+
+		res.json(ok({ canEmail, canDownload, emailNotVerified }));
 
 	} catch (err) {
 		console.error('[Report] Precheck error:', err);
@@ -107,8 +114,13 @@ router.post('/', async (req, res) => {
 		}
 
 		// Check if email is required for the delivery type
-		if ((delivery === DeliveryType.EMAIL || delivery === DeliveryType.BOTH) && !account.metadata.email) {
-			return res.status(400).json(fail('EMAIL_REQUIRED'));
+		if (delivery === DeliveryType.EMAIL || delivery === DeliveryType.BOTH) {
+			if (!account.metadata.email) {
+				return res.status(400).json(fail('EMAIL_REQUIRED'));
+			}
+			if (account.metadata.emailVerified !== true) {
+				return res.status(400).json(fail('EMAIL_NOT_VERIFIED'));
+			}
 		}
 
 		// Create the job

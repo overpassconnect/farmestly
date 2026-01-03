@@ -13,6 +13,8 @@ node_modules/
 
 **/deploy_temp/
 
+**/*.lock
+
 # Testing
 coverage/
 *.lcov

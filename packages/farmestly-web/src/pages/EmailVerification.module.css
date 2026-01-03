@@ -1,0 +1,175 @@
+.container {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 50%, #bbf7d0 100%);
+}
+
+.card {
+	background: white;
+	border-radius: 20px;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+	padding: 48px 40px;
+	text-align: center;
+	max-width: 420px;
+	width: 100%;
+}
+
+.logo {
+	margin-bottom: 32px;
+}
+
+.logoText {
+	font-size: 28px;
+	font-weight: 700;
+	background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+/* Icon styles */
+.icon {
+	width: 80px;
+	height: 80px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0 auto 24px;
+}
+
+.icon svg {
+	width: 40px;
+	height: 40px;
+}
+
+.iconSuccess {
+	background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+	color: white;
+}
+
+.iconError {
+	background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+	color: white;
+}
+
+/* Spinner */
+.spinner {
+	width: 80px;
+	height: 80px;
+	margin: 0 auto 24px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.spinnerInner {
+	width: 48px;
+	height: 48px;
+	border: 4px solid #e5e7eb;
+	border-top-color: #22c55e;
+	border-radius: 50%;
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* Typography */
+.title {
+	font-size: 24px;
+	font-weight: 700;
+	color: #1f2937;
+	margin: 0 0 12px;
+}
+
+.message {
+	font-size: 16px;
+	line-height: 1.6;
+	color: #4b5563;
+	margin: 0 0 32px;
+}
+
+/* Actions */
+.actions {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 16px;
+}
+
+.primaryButton {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 16px 40px;
+	background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+	color: white;
+	font-size: 16px;
+	font-weight: 600;
+	border: none;
+	border-radius: 12px;
+	cursor: pointer;
+	transition: transform 0.2s, box-shadow 0.2s;
+	width: 100%;
+	max-width: 280px;
+}
+
+.primaryButton:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 8px 20px rgba(34, 197, 94, 0.35);
+}
+
+.primaryButton:active {
+	transform: translateY(0);
+}
+
+.hint {
+	font-size: 14px;
+	color: #6b7280;
+	margin: 0;
+}
+
+.desktopNote {
+	font-size: 14px;
+	color: #059669;
+	background: #ecfdf5;
+	padding: 12px 16px;
+	border-radius: 8px;
+	margin: 8px 0 0;
+}
+
+/* Footer */
+.footer {
+	margin-top: 32px;
+	font-size: 12px;
+	color: #9ca3af;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+	.card {
+		padding: 32px 24px;
+		border-radius: 16px;
+	}
+
+	.title {
+		font-size: 20px;
+	}
+
+	.message {
+		font-size: 15px;
+	}
+
+	.primaryButton {
+		padding: 14px 32px;
+		font-size: 15px;
+	}
+}

@@ -13,6 +13,7 @@ router.use('/register', require('./auth/register'));
 router.use('/signout', require('./auth/signout'));
 router.use('/phoneVerify', require('./auth/phoneVerify'));
 router.use('/checkUsername', require('./auth/checkUsername'));
+router.use('/auth/verifyEmail', require('./auth/verifyEmail'));
 
 // ============================================
 // PROTECTED ROUTES (auth required)

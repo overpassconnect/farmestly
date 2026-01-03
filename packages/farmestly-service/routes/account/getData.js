@@ -37,6 +37,8 @@ router.get('/', async (req, res) => {
 			account: {
 				username: doc.metadata.username,
 				email: doc.metadata.email || null,
+				emailVerified: doc.metadata.emailVerified || false,
+				emailPending: doc.metadata.emailVerification?.pendingEmail || null,
 				phone: doc.metadata.phone || null,
 				setupCompleted: doc.metadata.setupCompleted || false,
 				preferences: doc.metadata.preferences || {
