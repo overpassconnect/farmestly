@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { View, TextInput, Text } from 'react-native';
 import { useFormikContext } from 'formik';
+import { useTranslation } from 'react-i18next';
 import colors from '../../../globals/colors';
 import { useFormikHelper } from './FormikHelperContext';
 import { getNestedValue, setNestedValue } from './formUtils';
@@ -20,6 +21,7 @@ export const FormInput = ({
 	...props
 }) => {
 	const inputRef = useRef(null);
+	const { t } = useTranslation('validation');
 	const { registerField, focusNextField, submitForm, currentFocusedField, setCurrentFocusedField, serverErrors, clearServerError } = useFormikHelper();
 	const { values, errors, touched, handleBlur, setFieldValue, setValues } = useFormikContext();
 
@@ -102,10 +104,10 @@ export const FormInput = ({
 					</View>
 				</View>
 				{serverError && (
-					<Text style={styles.errorText}>{serverError}</Text>
+					<Text style={styles.errorText}>{t(serverError)}</Text>
 				)}
 				{fieldError && fieldTouched && !serverError && (
-					<Text style={styles.errorText}>{fieldError}</Text>
+					<Text style={styles.errorText}>{t(fieldError)}</Text>
 				)}
 			</View>
 		);
@@ -154,10 +156,10 @@ export const FormInput = ({
 				inputElement
 			)}
 			{serverError && (
-				<Text style={styles.errorText}>{serverError}</Text>
+				<Text style={styles.errorText}>{t(serverError)}</Text>
 			)}
 			{fieldError && fieldTouched && !serverError && (
-				<Text style={styles.errorText}>{fieldError}</Text>
+				<Text style={styles.errorText}>{t(fieldError)}</Text>
 			)}
 		</View>
 	);
