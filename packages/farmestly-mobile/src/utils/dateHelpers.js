@@ -1,50 +1,46 @@
 /**
  * Shared date and time formatting utilities
  * Centralizes all date/time formatting logic to avoid duplication across components
+ *
+ * NOTE: These functions now use the localeParser singleton for locale-aware formatting.
+ * For React components, prefer using useLocale().formatDate() from LocaleProvider.
  */
+import { localeParser } from '../globals/locale/parser';
 
 /**
- * Format a date string or Date object to a readable date format
+ * Format a date string or Date object to a readable date format.
+ * Uses the current locale from localeParser singleton.
+ *
  * @param {string|Date} dateString - The date to format
  * @param {object} options - Additional Intl.DateTimeFormat options
  * @returns {string} Formatted date string or 'N/A' if invalid
  */
 export const formatDate = (dateString, options = {}) => {
-	if (!dateString) return 'N/A';
-
-	try {
-		const date = dateString instanceof Date ? dateString : new Date(dateString);
-		return date.toLocaleDateString('en-US', {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric',
-			...options
-		});
-	} catch (error) {
-		return 'N/A';
-	}
+	return localeParser.formatDate(dateString, options);
 };
 
 /**
- * Format a date string to include both date and time
+ * Format a date string to include both date and time.
+ * Uses the current locale from localeParser singleton.
+ *
  * @param {string|Date} dateString - The date to format
+ * @param {object} options - Additional Intl.DateTimeFormat options
  * @returns {string} Formatted date-time string or 'N/A' if invalid
  */
-export const formatDateTime = (dateString) => {
-	if (!dateString) return 'N/A';
+export const formatDateTime = (dateString, options = {}) => {
+	return localeParser.formatDateTime(dateString, options);
+};
 
-	try {
-		const date = dateString instanceof Date ? dateString : new Date(dateString);
-		return date.toLocaleString('en-US', {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	} catch (error) {
-		return 'N/A';
-	}
+/**
+ * Format a time from a date string or Date object.
+ * Uses the current locale from localeParser singleton.
+ *
+ * @param {string|Date} dateString - The date to format
+ * @param {object} options - Additional Intl.DateTimeFormat options
+ * @returns {string} Formatted time string or 'N/A' if invalid
+ */
+export const formatTime = (dateString, options = {}) => {
+	return localeParser.formatTime(dateString, options);
 };
 
 /**

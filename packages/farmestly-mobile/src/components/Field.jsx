@@ -302,7 +302,7 @@ const Field = () => {
 								label={t('common:labels.fieldLegalNumber')}
 								description={t('screens:field.fieldLegalNumberDescription')}
 								placeholder={t('common:placeholders.fieldLegalNumberExample')}
-								keyboardType="numeric"
+								keyboardType="number-pad"
 							/>
 
 							<FormDropdown

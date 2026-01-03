@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useRef, memo, useEffect } from 'react';
-import { api } from '../../globals/api';
 import { View, StyleSheet, BackHandler, Keyboard } from 'react-native';
-import { GestureHandlerRootView, gestureHandlerRootHOC } from 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import GorhomBottomSheet, { BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { Easing } from 'react-native-reanimated';
+import colors from '../../globals/colors';
 
 const BottomSheetContext = createContext(null);
 
@@ -193,19 +193,8 @@ const BottomSheetProvider = ({ children }) => {
 								duration: 0
 							}}
 							style={[
-								{ zIndex: 1 },
-								borderColor && {
-									borderTopLeftRadius: 24,
-									borderTopRightRadius: 24,
-									borderWidth: 3,
-									borderBottomWidth: 0,
-									borderColor: borderColor,
-									shadowColor: '#000',
-									shadowOffset: { width: 0, height: -4 },
-									shadowOpacity: 0.2,
-									shadowRadius: 8,
-									elevation: 10,
-								}
+								styles.sheetBorder,
+								borderColor && { borderColor: borderColor }
 							]}
 						>
 							{content}
@@ -234,12 +223,19 @@ const styles = StyleSheet.create({
 	container: {
 		...StyleSheet.absoluteFillObject,
 		padding: 16,
-
 	},
 	contentContainer: {
 		flex: 1,
 		padding: 16,
 		backgroundColor: 'white'
+	},
+	sheetBorder: {
+		zIndex: 1,
+		borderTopLeftRadius: 24,
+		borderTopRightRadius: 24,
+		borderWidth: 2,
+		borderBottomWidth: 0,
+		borderColor: colors.PRIMARY,
 	}
 });
 

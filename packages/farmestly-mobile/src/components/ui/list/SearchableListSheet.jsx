@@ -4,16 +4,15 @@ import {
 	Text,
 	TextInput,
 	StyleSheet,
-	ActivityIndicator,
 	Keyboard,
 	FlatList,
-	Image,
 } from 'react-native';
 import { BottomSheetFlatList, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import colors from '../../../globals/colors';
 import PrimaryButton from '../core/PrimaryButton';
+import EmptyState from '../core/EmptyState';
 import { useApi } from '../../../hooks/useApi';
 
 /**
@@ -265,11 +264,7 @@ const SearchableListSheet = ({
 	// Render empty state
 	const renderEmptyState = () => {
 		if (isLoading) {
-			return (
-				<View style={styles.emptyContainer}>
-					<ActivityIndicator size="large" color={colors.SECONDARY} />
-				</View>
-			);
+			return <EmptyState loading />;
 		}
 
 		// Use custom renderEmpty if provided
@@ -278,18 +273,11 @@ const SearchableListSheet = ({
 		}
 
 		return (
-			<View style={styles.emptyContainer}>
-				<Image
-					source={require('../../../assets/icons/magnifyingglass_brown.png')}
-					style={styles.emptyIcon}
-				/>
-				<Text style={styles.emptyTitle}>
-					{emptyTitle || t('general.noResults') || 'No results found'}
-				</Text>
-				<Text style={styles.emptySubtitle}>
-					{emptySubtitle || t('general.tryDifferentSearch') || 'Try a different search term'}
-				</Text>
-			</View>
+			<EmptyState
+				icon={require('../../../assets/icons/magnifyingglass_brown.png')}
+				title={emptyTitle || t('general.noResults') || 'No results found'}
+				subtitle={emptySubtitle || t('general.tryDifferentSearch') || 'Try a different search term'}
+			/>
 		);
 	};
 
@@ -434,30 +422,6 @@ const styles = StyleSheet.create({
 	listContentEmpty: {
 		flex: 1,
 		justifyContent: 'center',
-	},
-	emptyContainer: {
-		alignItems: 'center',
-		justifyContent: 'center',
-		paddingVertical: 40,
-	},
-	emptyIcon: {
-		width: 48,
-		height: 48,
-		marginBottom: 16,
-	},
-	emptyTitle: {
-		fontFamily: 'Geologica-SemiBold',
-		fontSize: 18,
-		color: colors.PRIMARY,
-		marginBottom: 8,
-		textAlign: 'center',
-	},
-	emptySubtitle: {
-		fontFamily: 'Geologica-Regular',
-		fontSize: 14,
-		color: colors.PRIMARY_LIGHT,
-		textAlign: 'center',
-		paddingHorizontal: 32,
 	},
 	loadingFooter: {
 		paddingVertical: 20,

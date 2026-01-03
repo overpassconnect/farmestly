@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Storage } from '../../utils/storage';
 import NetInfo from '@react-native-community/netinfo';
-import { api } from '../../globals/api';
+import { api, clearCookie } from '../../globals/api';
 import JobService from '../../utils/JobService';
 
 const GlobalContext = createContext();
@@ -97,6 +97,16 @@ export const GlobalContextProvider = ({ children }) => {
 
 		// Try server first
 		const serverData = await fetchFromServer();
+
+		// NO_SESSION returned - no valid session, cache already cleared
+		if (serverData?.noSession) {
+			setAccountRaw(null);
+			setFarmRaw(null);
+			setDataSource(null);
+			setIsLoading(false);
+			return null;
+		}
+
 		if (serverData) {
 			setAccountRaw(serverData.account);
 			setFarmRaw(serverData.farm);
@@ -115,7 +125,8 @@ export const GlobalContextProvider = ({ children }) => {
 			return serverData;
 		}
 
-		// Fallback to cache
+		// Fallback to cache only if server request failed (network error/timeout)
+		// NOT if server explicitly said NO_SESSION (that case is handled above)
 		const cachedData = await loadFromCacheInternal();
 		if (cachedData) {
 			setAccountRaw(cachedData.account);
@@ -163,10 +174,16 @@ export const GlobalContextProvider = ({ children }) => {
 				return serverData;
 			}
 
-			// NO_SESSION is expected on first install, don't log as error
-			if (data.HEADERS?.STATUS_CODE !== 'NO_SESSION') {
-				console.error('Invalid response or unsuccessful request:', data);
+			// NO_SESSION means no valid session exists on server
+			// Clear any stale cached data and cookie to prevent session leakage
+			if (data.HEADERS?.STATUS_CODE === 'NO_SESSION') {
+				await clearCookie();
+				await Storage.removeItem(CACHE_KEY);
+				await Storage.removeItem('@FarmDataCache');
+				return { noSession: true };
 			}
+
+			console.error('Invalid response or unsuccessful request:', data);
 			return null;
 		} catch (err) {
 			console.error('Failed to fetch from server:', err);

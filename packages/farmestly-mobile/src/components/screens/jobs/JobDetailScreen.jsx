@@ -470,7 +470,7 @@ const JobDetailScreen = () => {
 											unit={symbol('mass')}
 											inline={true}
 											placeholder="0"
-											keyboardType="numeric"
+											numeric={true}
 											inputStyle={{ width: 120 }}
 										/>
 									) : (
@@ -512,7 +512,7 @@ const JobDetailScreen = () => {
 											unit={rateSymbol(true)}
 											inline={true}
 											placeholder="0"
-											keyboardType="numeric"
+											numeric={true}
 											inputStyle={{ width: 120 }}
 										/>
 									) : (
@@ -538,7 +538,7 @@ const JobDetailScreen = () => {
 															unit={rateSymbol(product.isVolume)}
 															inline={true}
 															placeholder="0"
-															keyboardType="numeric"
+															numeric={true}
 															inputStyle={{ width: 120 }}
 														/>
 													) : (

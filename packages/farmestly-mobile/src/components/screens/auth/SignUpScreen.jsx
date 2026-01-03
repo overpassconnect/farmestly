@@ -10,13 +10,28 @@ import { phone } from 'phone';
 import OTPTextInput from 'react-native-otp-textinput'
 import flagIcons from '../../../globals/flagIcons';
 import { FormikHelper, FormPhoneInput } from '../../ui/form';
+import { SUPPORTED_COUNTRIES } from '../../../globals/locale/constants';
+import { getDeviceCountry } from '../../../globals/locale/deviceLocale';
 
 const BASE_URL = config.BASE_URL;
 const { width, height } = Dimensions.get('window');
-const countries = [
-	{ code: 'GR', name: 'Greece', placeholder: '6912345678' },
-	{ code: 'CY', name: 'Cyprus', placeholder: '91234567' },
-]
+
+// Map SUPPORTED_COUNTRIES to format expected by FormPhoneInput
+const countries = SUPPORTED_COUNTRIES.map(c => ({
+	code: c.code,
+	name: c.name,
+	placeholder: c.phonePlaceholder,
+}));
+
+/**
+ * Get initial country based on device locale.
+ * Falls back to first supported country if device country not supported.
+ */
+const getInitialCountry = () => {
+	const deviceCountry = getDeviceCountry();
+	const matched = countries.find(c => c.code === deviceCountry);
+	return matched || countries[0];
+};
 
 // Wizard pages will be defined after styles
 let wizardPages;
@@ -38,7 +53,7 @@ const SignUpScreen = ({ navigation, route }) => {
 	const [otpIsValid, setOtpIsValid] = useState(false);
 	const [isLoading, setIsLoading] = useState(false)
 
-	const [country, setCountry] = useState(countries[0]);
+	const [country, setCountry] = useState(getInitialCountry);
 
 	const flatlistRef = useRef();
 	const bottomSheetRef = useRef(null);

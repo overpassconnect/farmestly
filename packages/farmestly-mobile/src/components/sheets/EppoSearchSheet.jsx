@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGlobalContext } from '../context/GlobalContextProvider';
-import { useLanguage } from '../context/LanguageContextProvider';
+import { useLocale } from '../../providers/LocaleProvider';
 import SearchableListSheet from '../ui/list/SearchableListSheet';
 import ListItem from '../ui/list/ListItem';
 import { toTitleCase, deduplicateEppoResults } from '../../utils/eppoHelpers';
@@ -17,7 +17,7 @@ import { toTitleCase, deduplicateEppoResults } from '../../utils/eppoHelpers';
 const EppoSearchSheet = ({ onSelect, onCancel }) => {
 	const { t } = useTranslation('common');
 	const { isOffline } = useGlobalContext();
-	const { currentLanguage } = useLanguage();
+	const { locale } = useLocale();
 
 	const handleSelect = (item) => {
 		onSelect(item);
@@ -26,7 +26,7 @@ const EppoSearchSheet = ({ onSelect, onCancel }) => {
 
 	// Transform results to deduplicate by eppocode and pick best language
 	const transformResults = (results) => {
-		return deduplicateEppoResults(results, currentLanguage);
+		return deduplicateEppoResults(results, locale);
 	};
 
 	const renderItem = ({ item, onSelect: selectHandler }) => (

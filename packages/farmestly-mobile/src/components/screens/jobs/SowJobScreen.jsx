@@ -57,16 +57,10 @@ const SowJobScreen = () => {
 					cultivation: {
 						id: cultivationId,
 						crop: values.crop.trim(),
-						variety: values.variety.trim() || null,
-						eppoCode: values.eppoCode || null,
-						lotNumber: values.lotNumber.trim() || null,
-						seedManufacturer: values.seedManufacturer || null
+						variety: values.variety.trim() || null
 					},
 					data: {
 						sow: {
-							crop: values.crop.trim(),
-							variety: values.variety.trim() || null,
-							cultivationId: cultivationId,
 							eppoCode: values.eppoCode || null,
 							lotNumber: values.lotNumber.trim() || null,
 							seedManufacturer: values.seedManufacturer || null

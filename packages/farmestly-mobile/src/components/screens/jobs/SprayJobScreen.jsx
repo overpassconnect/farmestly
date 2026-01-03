@@ -322,7 +322,7 @@ const SprayFormContent = ({
 								onChangeText={(text) => setFieldValue('carrierRate', text)}
 								placeholder="200"
 								placeholderTextColor={colors.PRIMARY_LIGHT}
-								keyboardType="numeric"
+								keyboardType="decimal-pad"
 								cursorColor={colors.PRIMARY}
 								selectionColor={colors.SECONDARY}
 							/>
@@ -356,7 +356,7 @@ const SprayFormContent = ({
 														onChangeText={(text) => setFieldValue(`products.${index}.rate`, text)}
 														placeholder={t('screens:sprayJob.rate')}
 														placeholderTextColor={colors.PRIMARY_LIGHT}
-														keyboardType="numeric"
+														keyboardType="decimal-pad"
 														cursorColor={colors.PRIMARY}
 														selectionColor={colors.SECONDARY}
 													/>

@@ -14,7 +14,8 @@ import { useTranslation } from 'react-i18next';
 
 import colors from '../../../globals/colors';
 import { useGlobalContext } from '../../context/GlobalContextProvider';
-import { useLanguage } from '../../context/LanguageContextProvider';
+import { useLocale } from '../../../providers/LocaleProvider';
+import { SUPPORTED_LOCALES } from '../../../globals/locale/constants';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useUnits } from '../../../providers/UnitsProvider';
 import { Storage } from '../../../utils/storage';
@@ -147,7 +148,7 @@ const SettingsSection = ({
 
 const SettingsScreen = () => {
 	const { t } = useTranslation(['common', 'screens']);
-	const { currentLanguage, changeLanguage } = useLanguage();
+	const { locale, changeLocale } = useLocale();
 	const { unit: getCurrentUnit, setUnit, getAvailableUnits } = useUnits();
 
 	const navigation = useNavigation();
@@ -164,13 +165,13 @@ const SettingsScreen = () => {
 	const { openBottomSheet, closeBottomSheet } = useBottomSheet();
 	const { api } = useApi();
 
-	const handleLanguageChange = async (language) => {
+	const handleLocaleChange = async (newLocale) => {
 		try {
-			console.log('Changing language to:', language);
-			await changeLanguage(language);
+			console.log('Changing locale to:', newLocale);
+			await changeLocale(newLocale);
 			closeBottomSheet();
 		} catch (error) {
-			console.error('Error changing language:', error);
+			console.error('Error changing locale:', error);
 		}
 	};
 
@@ -194,26 +195,28 @@ const SettingsScreen = () => {
 		closeBottomSheet();
 	};
 
-	const showLanguageOptions = () => {
-		const languages = [
-			{ key: 'en', label: 'English', icon: 'EN' },
-			{ key: 'gr', label: 'Ελληνικά', icon: 'ΕΛ' }
-		];
+	const showLocaleOptions = () => {
+		// Build locale options from SUPPORTED_LOCALES
+		const locales = Object.entries(SUPPORTED_LOCALES).map(([key, config]) => ({
+			key,
+			label: config.displayName,
+			icon: config.country,
+		}));
 
 		const content = (
 			<BottomSheetView style={styles.bottomSheetContainer}>
-				{languages.map((lang) => (
+				{locales.map((loc) => (
 					<TouchableOpacity
-						key={lang.key}
-						onPress={() => handleLanguageChange(lang.key)}
+						key={loc.key}
+						onPress={() => handleLocaleChange(loc.key)}
 					>
 						<ListItem
-							icon={<Text style={styles.unitIcon}>{lang.icon}</Text>}
-							title={lang.label}
+							icon={<Text style={styles.unitIcon}>{loc.icon}</Text>}
+							title={loc.label}
 							simple={true}
 							showChevron={false}
 							showRadio={true}
-							isSelected={currentLanguage === lang.key}
+							isSelected={locale === loc.key}
 						/>
 					</TouchableOpacity>
 				))}
@@ -221,7 +224,7 @@ const SettingsScreen = () => {
 		);
 
 		openBottomSheet(content, {
-			snapPoints: ['40%'],
+			snapPoints: ['50%'],
 			enablePanDownToClose: true
 		});
 	};
@@ -376,8 +379,8 @@ const SettingsScreen = () => {
 	};
 
 
-	const getLanguageLabel = (langCode) => {
-		return langCode === 'en' ? 'English' : 'Ελληνικά';
+	const getLocaleLabel = (localeCode) => {
+		return SUPPORTED_LOCALES[localeCode]?.displayName || localeCode;
 	};
 
 	const getAreaUnitLabel = () => {
@@ -474,9 +477,9 @@ const SettingsScreen = () => {
 					<SettingInput
 						fieldKey="language"
 						label={t('common:labels.language')}
-						value={getLanguageLabel(currentLanguage)}
+						value={getLocaleLabel(locale)}
 						onSave={() => ({ success: true })}
-						onPress={showLanguageOptions}
+						onPress={showLocaleOptions}
 					/>
 					<SettingInput
 						fieldKey="areaUnit"

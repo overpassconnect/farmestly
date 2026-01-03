@@ -26,7 +26,7 @@ import { EditEntityScreen } from './src/components/screens/entities';
 import Field from './src/components/Field';
 import { BottomSheetContextProvider } from './src/components/sheets/BottomSheetContextProvider';
 import { GlobalContextProvider, useGlobalContext } from './src/components/context/GlobalContextProvider';
-import { LanguageContextProvider } from './src/components/context/LanguageContextProvider';
+import { LocaleProvider } from './src/providers/LocaleProvider';
 import TabNavigator from './src/components/TabNavigator';
 import { UnitsWrapper } from './src/components/UnitsWrpper';
 import TemplateWizardScreen from './src/components/templateWizard/TemplateWizardScreen';
@@ -133,7 +133,7 @@ const App = () => {
 	return (
 		<SafeAreaProvider>
 			<GlobalContextProvider>
-				<LanguageContextProvider>
+				<LocaleProvider>
 					<UnitsWrapper>
 						<DeepLinkHandler>
 							<StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
@@ -185,7 +185,7 @@ const App = () => {
 							</SafeAreaView>
 						</DeepLinkHandler>
 					</UnitsWrapper>
-				</LanguageContextProvider>
+				</LocaleProvider>
 			</GlobalContextProvider>
 			<Toast
 				config={{

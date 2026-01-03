@@ -700,7 +700,7 @@ const EditEntityScreen = () => {
 						label={`${t('common:labels.powerOnHours')} (${symbol('time')})`}
 						description="Total operating hours on the machine"
 						placeholder="e.g. 6000"
-						keyboardType="numeric"
+						numeric={true}
 						invalidMessage={t('validation:powerOnHoursMustBeNumber')}
 					/>
 
@@ -749,7 +749,7 @@ const EditEntityScreen = () => {
 						label={`Power-on-Hours (${symbol('time')})`}
 						description="Total operating hours on the attachment"
 						placeholder="e.g. 6000"
-						keyboardType="numeric"
+						numeric={true}
 						invalidMessage="Power-on-Hours must be a number"
 					/>
 
@@ -774,7 +774,7 @@ const EditEntityScreen = () => {
 								label={`${t('common:labels.tankCapacity')} (${symbol('volume')})`}
 								description={t('common:descriptions.tankCapacity')}
 								placeholder="π.χ. 3000"
-								keyboardType="numeric"
+								numeric={true}
 								invalidMessage={t('validation:tankCapacityRequired') || 'Tank capacity is required when used for spraying'}
 							/>
 
@@ -783,7 +783,7 @@ const EditEntityScreen = () => {
 								label={`${t('common:labels.boomWidth')} (${symbol('length')})`}
 								description={t('common:descriptions.boomWidth')}
 								placeholder="π.χ. 24"
-								keyboardType="numeric"
+								numeric={true}
 								invalidMessage=""
 							/>
 
@@ -792,7 +792,7 @@ const EditEntityScreen = () => {
 								label={`${t('common:labels.defaultCarrierRate')} (${rateSymbol(true)})`}
 								description={t('common:descriptions.defaultCarrierRate')}
 								placeholder="π.χ. 200"
-								keyboardType="numeric"
+								numeric={true}
 								invalidMessage=""
 								isLast={true}
 							/>
@@ -805,7 +805,7 @@ const EditEntityScreen = () => {
 							label={`Flow rate (${symbol('volume')}/hour)`}
 							description="Flow rate for irrigation setups (e.g., for an irrigation wheel)"
 							placeholder="e.g. 200"
-							keyboardType="numeric"
+							numeric={true}
 							invalidMessage=""
 						/>
 					)}
@@ -863,7 +863,7 @@ const EditEntityScreen = () => {
 						label={`Power-On-Hours (${symbol('time')})`}
 						description="Total operating hours on the tool"
 						placeholder="e.g. 500"
-						keyboardType="numeric"
+						numeric={true}
 						invalidMessage="Power-On-Hours must be a number"
 					/>
 
@@ -983,7 +983,7 @@ const EditEntityScreen = () => {
 						label={`${t('common:labels.defaultRate')} (${rateSymbol(values.isVolume)})`}
 						description={t('common:descriptions.defaultRate')}
 						placeholder="π.χ. 1.6"
-						keyboardType="numeric"
+						numeric={true}
 						invalidMessage=""
 					/>
 
@@ -992,7 +992,7 @@ const EditEntityScreen = () => {
 						label={t('common:labels.rei')}
 						description={t('common:descriptions.rei')}
 						placeholder="π.χ. 24"
-						keyboardType="numeric"
+						numeric={true}
 						invalidMessage=""
 					/>
 
@@ -1001,7 +1001,7 @@ const EditEntityScreen = () => {
 						label={t('common:labels.phi')}
 						description={t('common:descriptions.phi')}
 						placeholder="π.χ. 14"
-						keyboardType="numeric"
+						numeric={true}
 						invalidMessage=""
 					/>
 

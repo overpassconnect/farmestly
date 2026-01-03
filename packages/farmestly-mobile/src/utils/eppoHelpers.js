@@ -4,11 +4,23 @@
  * Utility functions for working with EPPO (European and Mediterranean
  * Plant Protection Organization) data.
  */
+import { getLanguage } from '../globals/locale/constants';
 
-// Map app language codes to EPPO language codes
-export const EPPO_LANG_MAP = {
-	'en': 'en',
-	'gr': 'el', // Greek in EPPO uses 'el'
+
+/**
+ * Get EPPO-compatible language code from user's locale or language.
+ * Handles both new BCP 47 locales (el-GR) and legacy i18n codes (gr).
+ *
+ * @param {string} localeOrLang - Either a BCP 47 locale or legacy language code
+ * @returns {string} EPPO-compatible language code
+ */
+export const getEppoLanguage = (localeOrLang) => {
+	// If it's a BCP 47 locale (contains hyphen), extract language
+	if (localeOrLang && localeOrLang.includes('-')) {
+		return getLanguage(localeOrLang);
+	}
+	// Legacy language code - use map for backwards compatibility
+	return EPPO_LANG_MAP[localeOrLang] || localeOrLang || 'en';
 };
 
 /**
@@ -45,7 +57,7 @@ export const toTitleCase = (str) => {
 export const getBestFullnameFromResults = (results, eppocode, userLang) => {
 	if (!results || !Array.isArray(results) || !eppocode) return '';
 
-	const eppoLang = EPPO_LANG_MAP[userLang] || userLang;
+	const eppoLang = getEppoLanguage(userLang);
 
 	// Filter to only results matching this eppocode
 	const matchingResults = results.filter(r => r.eppocode === eppocode);
@@ -92,7 +104,7 @@ export const getItemFullname = (item, userLang) => {
 export const deduplicateEppoResults = (results, userLang) => {
 	if (!results || !Array.isArray(results)) return [];
 
-	const eppoLang = EPPO_LANG_MAP[userLang] || userLang;
+	const eppoLang = getEppoLanguage(userLang);
 	const seen = new Map();
 
 	// First pass: collect all items by eppocode
