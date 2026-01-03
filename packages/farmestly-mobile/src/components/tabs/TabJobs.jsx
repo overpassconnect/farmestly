@@ -247,7 +247,9 @@ const TabJobs = () => {
 
 	// Format date and time for records
 	const formatDateTime = (dateString) => {
+		if (!dateString) return 'N/A';
 		const date = new Date(dateString);
+		if (isNaN(date.getTime())) return 'N/A';
 		return date.toLocaleDateString() + ' • ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 	};
 
@@ -325,7 +327,7 @@ const handleJobRecordPress = (record) => {
 						}}>{getFieldName()}</Text>
 					</View>
 				)}
-				subTitle1={formatDateTime(item.startTime)}
+				subTitle1={formatDateTime(item.startedAt || item.startTime)}
 				subTitle2={`Duration: ${formatDuration(item.elapsedTime)}`}
 				showChevron={true}
 				syncStatus={isSynced ? 'synced' : 'pending'}
@@ -419,7 +421,7 @@ const handleJobRecordPress = (record) => {
 								key={`jobRecords-${JSON.stringify(filters)}-${searchQuery}`}
 								data={jobRecords}
 								renderItem={renderJobRecordItem}
-								keyExtractor={(item, index) => item._id + index}
+								keyExtractor={(item, index) => item._id ? `${item._id}-${index}` : `local-${index}`}
 								ListEmptyComponent={renderEmptyState}
 								ListFooterComponent={renderFooter}
 								contentContainerStyle={[
@@ -501,9 +503,9 @@ const handleJobRecordPress = (record) => {
 										const typeLabel = template.type ? t(`common:jobTypes.${template.type}`) || template.type : 'Template';
 
 										const equipmentSubtitle = [
-											machineName && `Machine: ${machineName}`,
-											attachmentName && `Attachment: ${attachmentName}`,
-											toolName && `Tool: ${toolName}`
+											machineName && `${machineName}`,
+											attachmentName && `${attachmentName}`,
+											toolName && `${toolName}`
 										].filter(Boolean).join(' • ') || 'Tap to configure equipment';
 
 										return {

@@ -111,6 +111,9 @@ const styles = StyleSheet.create({
 		gap: 4,
 	},
 	fieldName: {
+		// fontFamily: 'Geologica-Bold',
+		// fontSize: 16,
+		// color: '#333333',
 		flexShrink: 1,
 	},
 });

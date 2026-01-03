@@ -48,13 +48,13 @@ class ReportPollingService {
       // Handle network/server errors
       if (!result.ok) {
         if (this._callbacks.onError) {
-          this._callbacks.onError(result.error || 'POLL_ERROR');
+          this._callbacks.onError(result.code || 'POLL_ERROR');
         }
         this.stop();
         return;
       }
 
-      const { status, result: jobResult, error } = result;
+      const { status, result: jobResult, error } = result.data || {};
 
       // Handle different job statuses
       switch (status) {
