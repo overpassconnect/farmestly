@@ -261,15 +261,7 @@ const TabJobs = () => {
 
 	// Get job type icon
 	const getJobTypeIcon = (jobType) => {
-		switch (jobType) {
-			case 'sow':
-			case 'harvest':
-			case 'spray':
-			case 'irrigation':
-				return require('../../assets/icons/job_icon_builtin.png');
-			default:
-				return require('../../assets/icons/job_icon.png');
-		}
+		return config.JOB_TYPE_ICONS[jobType] || config.JOB_TYPE_ICONS.custom;
 	};
 
 	// Handle job record press - navigate to JobDetailScreen

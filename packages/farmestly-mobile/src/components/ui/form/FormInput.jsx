@@ -18,6 +18,10 @@ export const FormInput = ({
 	inline = false,
 	inputStyle,
 	containerStyle,
+	multiline = false,
+	numberOfLines = 1,
+	maxLength,
+	showCharacterCount = false,
 	...props
 }) => {
 	const inputRef = useRef(null);
@@ -98,6 +102,7 @@ export const FormInput = ({
 							placeholder={placeholder}
 							cursorColor={colors.PRIMARY}
 							selectionColor={colors.SECONDARY}
+							
 							{...props}
 						/>
 						{unit && <Text style={styles.inlineUnitLabel}>{unit}</Text>}
@@ -122,6 +127,12 @@ export const FormInput = ({
 				isFocused && styles.inputFocused,
 				hasError && styles.inputError,
 				unit && styles.inputWithUnit,
+				multiline && {
+					height: undefined,
+					minHeight: 46 * numberOfLines,
+					textAlignVertical: 'top',
+					paddingTop: 12,
+				},
 				inputStyle,
 			]}
 			placeholderTextColor={colors.PRIMARY_LIGHT}
@@ -135,13 +146,20 @@ export const FormInput = ({
 			value={fieldValue}
 			onChangeText={handleChangeText}
 			onSubmitEditing={handleSubmitEditing}
-			returnKeyType={isLast ? "done" : "next"}
+			returnKeyType={multiline ? "default" : (isLast ? "done" : "next")}
 			placeholder={placeholder}
 			cursorColor={colors.PRIMARY}
 			selectionColor={colors.SECONDARY}
+			multiline={multiline}
+			numberOfLines={numberOfLines}
 			{...props}
 		/>
 	);
+
+	// Show character count when maxLength is set (works for both single and multiline)
+	const shouldShowCharCount = maxLength != null;
+	// Use Array.from to count grapheme clusters for better international support
+	const charCount = fieldValue ? [...fieldValue].length : 0;
 
 	return (
 		<View style={[styles.inputContainer, containerStyle]}>
@@ -154,6 +172,14 @@ export const FormInput = ({
 				</View>
 			) : (
 				inputElement
+			)}
+			{shouldShowCharCount && (
+				<Text style={[
+					styles.characterCount,
+					charCount > maxLength && styles.characterCountError
+				]}>
+					{charCount}/{maxLength}
+				</Text>
 			)}
 			{serverError && (
 				<Text style={styles.errorText}>{t(serverError)}</Text>

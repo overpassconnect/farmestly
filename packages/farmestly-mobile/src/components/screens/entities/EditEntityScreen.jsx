@@ -13,7 +13,7 @@ import { useBottomSheet } from '../../sheets/BottomSheetContextProvider';
 import ListItem from '../../ui/list/ListItem';
 import ButtonStack from '../../ui/core/ButtonGroup';
 // Import Formik helpers
-import { FormikHelper, FormInput, FormDropdown } from '../../ui/form';
+import { FormikHelper, FormInput, FormDropdown, formStyles } from '../../ui/form';
 import { useUnits } from '../../../providers/UnitsProvider';
 import OptionPicker from '../../ui/core/OptionPicker';
 import SearchableListSheet from '../../ui/list/SearchableListSheet';
@@ -153,7 +153,8 @@ const EditEntityScreen = () => {
 						powerOnTime: '',
 						tankCapacity: '',
 						boomWidth: '',
-						defaultCarrierRate: ''
+						defaultCarrierRate: '',
+						notes: ''
 					};
 				case 'attachment':
 					return {
@@ -167,7 +168,8 @@ const EditEntityScreen = () => {
 						litersPerHour: '',
 						tankCapacity: '',
 						boomWidth: '',
-						defaultCarrierRate: ''
+						defaultCarrierRate: '',
+						notes: ''
 					};
 				case 'tool':
 					return {
@@ -175,7 +177,8 @@ const EditEntityScreen = () => {
 						type: '',
 						brand: '',
 						model: '',
-						powerOnTime: ''
+						powerOnTime: '',
+						notes: ''
 					};
 				case 'product':
 					return {
@@ -209,7 +212,8 @@ const EditEntityScreen = () => {
 						powerOnTime: entity.powerOnTime ? formatValue(entity.powerOnTime, 'time')?.toString() : '',
 						tankCapacity: entity.tankCapacity ? formatValue(entity.tankCapacity, 'volume')?.toString() : '',
 						boomWidth: entity.boomWidth ? formatValue(entity.boomWidth, 'length')?.toString() : '',
-						defaultCarrierRate: entity.defaultCarrierRate ? formatRateValue(entity.defaultCarrierRate)?.toString() : ''
+						defaultCarrierRate: entity.defaultCarrierRate ? formatRateValue(entity.defaultCarrierRate)?.toString() : '',
+						notes: entity.notes || ''
 					};
 				case 'attachment':
 					return {
@@ -221,7 +225,8 @@ const EditEntityScreen = () => {
 						litersPerHour: entity.litersPerHour ? formatValue(entity.litersPerHour, 'volume')?.toString() : '',
 						tankCapacity: entity.tankCapacity ? formatValue(entity.tankCapacity, 'volume')?.toString() : '',
 						boomWidth: entity.boomWidth ? formatValue(entity.boomWidth, 'length')?.toString() : '',
-						defaultCarrierRate: entity.defaultCarrierRate ? formatRateValue(entity.defaultCarrierRate)?.toString() : ''
+						defaultCarrierRate: entity.defaultCarrierRate ? formatRateValue(entity.defaultCarrierRate)?.toString() : '',
+						notes: entity.notes || ''
 					};
 				case 'tool':
 					return {
@@ -229,7 +234,8 @@ const EditEntityScreen = () => {
 						type: entity.type || '',
 						brand: entity.brand || '',
 						model: entity.model || '',
-						powerOnTime: entity.powerOnTime ? formatValue(entity.powerOnTime, 'time')?.toString() : ''
+						powerOnTime: entity.powerOnTime ? formatValue(entity.powerOnTime, 'time')?.toString() : '',
+						notes: entity.notes || ''
 					};
 				case 'product':
 					return {
@@ -696,7 +702,18 @@ const EditEntityScreen = () => {
 						placeholder="e.g. 6000"
 						keyboardType="numeric"
 						invalidMessage={t('validation:powerOnHoursMustBeNumber')}
+					/>
+
+					<FormInput
+						name="notes"
+						label={t('common:labels.notesOptional')}
+						description={t('common:descriptions.equipmentNotes')}
+						placeholder={t('common:placeholders.enterNotes')}
+						invalidMessage=""
 						isLast={true}
+						numberOfLines={4}
+						multiline={true}
+						maxLength={500}
 					/>
 				</>
 			);
@@ -792,6 +809,18 @@ const EditEntityScreen = () => {
 							invalidMessage=""
 						/>
 					)}
+
+					<FormInput
+						name="notes"
+						label={t('common:labels.notesOptional')}
+						description={t('common:descriptions.equipmentNotes')}
+						placeholder={t('common:placeholders.enterNotes')}
+						invalidMessage=""
+						isLast={true}
+						numberOfLines={4}
+						multiline={true}
+						maxLength={500}
+					/>
 				</>
 			);
 		} else if (entityType === 'tool') {
@@ -836,7 +865,18 @@ const EditEntityScreen = () => {
 						placeholder="e.g. 500"
 						keyboardType="numeric"
 						invalidMessage="Power-On-Hours must be a number"
+					/>
+
+					<FormInput
+						name="notes"
+						label={t('common:labels.notesOptional')}
+						description={t('common:descriptions.equipmentNotes')}
+						placeholder={t('common:placeholders.enterNotes')}
+						invalidMessage=""
 						isLast={true}
+						numberOfLines={4}
+						multiline={true}
+						maxLength={500}
 					/>
 				</>
 			);
@@ -900,9 +940,9 @@ const EditEntityScreen = () => {
 					/>
 
 					{/* Product Type - using SearchableListSheet */}
-					<View style={styles.inputContainer}>
-						<Text style={styles.formLabel}>{t('common:labels.productType')}:</Text>
-						<Text style={styles.formDescription}>{t('common:descriptions.productType')}</Text>
+					<View style={formStyles.inputContainer}>
+						<Text style={formStyles.formLabel}>{t('common:labels.productType')}:</Text>
+						<Text style={formStyles.formDescription}>{t('common:descriptions.productType')}</Text>
 						<Pressable
 							style={styles.dropdownField}
 							onPress={openProductTypeSheet}
@@ -967,11 +1007,14 @@ const EditEntityScreen = () => {
 
 					<FormInput
 						name="notes"
-						label={t('common:labels.notes')}
+						label={t('common:labels.notesOptional')}
 						description={t('common:descriptions.productNotes')}
-						placeholder={t('common:placeholders.enterNotes') || 'Enter any additional information'}
+						placeholder={t('common:placeholders.enterNotes')}
 						invalidMessage=""
 						isLast={true}
+						numberOfLines={4}
+						multiline={true}
+						maxLength={500}
 					/>
 				</>
 			);
@@ -1300,21 +1343,6 @@ const styles = StyleSheet.create({
 		justifyContent: 'center',
 		alignItems: 'center',
 		zIndex: 1000
-	},
-	inputContainer: {
-		marginBottom: 20
-	},
-	formLabel: {
-		fontFamily: 'Geologica-Medium',
-		fontSize: 16,
-		color: colors.PRIMARY,
-		marginBottom: 4
-	},
-	formDescription: {
-		fontFamily: 'Geologica-Regular',
-		fontSize: 14,
-		color: colors.PRIMARY_LIGHT,
-		marginBottom: 8
 	},
 	dropdownField: {
 		height: 46,

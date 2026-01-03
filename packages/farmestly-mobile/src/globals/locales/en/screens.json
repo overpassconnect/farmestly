@@ -40,6 +40,20 @@
 		"deleting": "Deleting...",
 		"notSet": "Not set"
 	},
+	"emailSettings": {
+		"title": "Email Address",
+		"subtitle": "Enter your email to receive farm reports and notifications. You can only change your email once every six months.",
+		"currentEmail": "Current email",
+		"newEmail": "New email",
+		"email": "Email",
+		"status": "Status",
+		"placeholder": "your@email.com",
+		"description": "Enter a new email to replace your current one.",
+		"sending": "Sending...",
+		"resendVerification": "Resend Verification",
+		"saveEmail": "Save Email",
+		"changeEmail": "Change Email"
+	},
 	"sowJob": {
 		"title": "Sow a New Crop",
 		"note": "Note:",

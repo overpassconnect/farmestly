@@ -40,6 +40,20 @@
 		"deleting": "Διαγραφή...",
 		"notSet": "Δεν έχει οριστεί"
 	},
+	"emailSettings": {
+		"title": "Διεύθυνση Email",
+		"subtitle": "Εισάγετε το email σας για να λαμβάνετε αναφορές αγροκτήματος και ειδοποιήσεις. Μπορείτε να αλλάξετε το email σας μόνο μία φορά κάθε έξι μήνες.",
+		"currentEmail": "Τρέχον email",
+		"newEmail": "Νέο email",
+		"email": "Email",
+		"status": "Κατάσταση",
+		"placeholder": "you@email.com",
+		"description": "Εισάγετε νέο email για να αντικαταστήσετε το τρέχον.",
+		"sending": "Αποστολή...",
+		"resendVerification": "Επαναποστολή Επαλήθευσης",
+		"saveEmail": "Αποθήκευση Email",
+		"changeEmail": "Αλλαγή Email"
+	},
 	"sowJob": {
 		"title": "Σπορά Νέας Καλλιέργειας",
 		"note": "Σημείωση:",

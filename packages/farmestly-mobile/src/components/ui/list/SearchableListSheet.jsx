@@ -7,6 +7,7 @@ import {
 	ActivityIndicator,
 	Keyboard,
 	FlatList,
+	Image,
 } from 'react-native';
 import { BottomSheetFlatList, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useTranslation } from 'react-i18next';
@@ -278,7 +279,10 @@ const SearchableListSheet = ({
 
 		return (
 			<View style={styles.emptyContainer}>
-				<Text style={styles.emptyIcon}>🔍</Text>
+				<Image
+					source={require('../../../assets/icons/magnifyingglass_brown.png')}
+					style={styles.emptyIcon}
+				/>
 				<Text style={styles.emptyTitle}>
 					{emptyTitle || t('general.noResults') || 'No results found'}
 				</Text>
@@ -437,7 +441,8 @@ const styles = StyleSheet.create({
 		paddingVertical: 40,
 	},
 	emptyIcon: {
-		fontSize: 48,
+		width: 48,
+		height: 48,
 		marginBottom: 16,
 	},
 	emptyTitle: {

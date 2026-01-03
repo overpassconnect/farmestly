@@ -409,7 +409,7 @@ const SlidingHeader = forwardRef(({
 							<Image style={styles.topHeaderButtonImage} resizeMethod='contain' source={require('../../assets/icons/report.png')} />
 						</TouchableOpacity>
 						<TouchableOpacity style={styles.topHeaderButton} onPress={onSettingsPress}>
-							<Image style={styles.topHeaderButtonImage} resizeMethod='contain' source={require('../../assets/icons/hamburger.png')} />
+							<Image style={styles.topHeaderButtonImage} resizeMethod='contain' source={require('../../assets/icons/gear_white.png')} />
 						</TouchableOpacity>
 					</View>
 

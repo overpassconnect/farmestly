@@ -26,6 +26,7 @@ const FirstSetupScreen = () => {
 	const [currentStepIndex, setCurrentStepIndex] = useState(0);
 	const [wizardState, setWizardState] = useState({
 		farmName: '',
+		email: '',
 		fields: []
 	});
 	const [isLoading, setIsLoading] = useState(false);
@@ -75,6 +76,16 @@ const FirstSetupScreen = () => {
 		});
 
 		if (result.ok) {
+			// If user entered an email, save it (this will trigger verification email)
+			if (wizardState.email && wizardState.email.trim()) {
+				await api('/settings/email', {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ email: wizardState.email.trim() })
+				});
+				// We don't need to check the result - if it fails, user can add email later
+			}
+
 			// Refresh data from server to get the newly created fields
 			const refreshed = await refresh();
 			if (refreshed) {
@@ -86,6 +97,23 @@ const FirstSetupScreen = () => {
 		}
 
 		setIsLoading(false);
+	};
+
+	// Get current step config to check if it's skippable
+	const currentStep = setupWizardSteps[currentStepIndex];
+	const isSkippable = currentStep?.canUserSkip?.(wizardState) ?? false;
+	const isLastStep = currentStepIndex >= setupWizardSteps.length - 1;
+
+	// Determine button text based on step and state
+	const getButtonText = () => {
+		if (isLastStep) {
+			return t('common:buttons.done');
+		}
+		// For email step: show "Next" if email entered, "Skip" if empty
+		if (isSkippable && !wizardState.email?.trim()) {
+			return t('common:buttons.skip');
+		}
+		return t('common:buttons.next');
 	};
 
 	return (
@@ -101,9 +129,7 @@ const FirstSetupScreen = () => {
 				<PrimaryButton
 					onPress={handleNextStep}
 					loading={isLoading}
-					text={(currentStepIndex < setupWizardSteps.length - 1)
-						? t('common:buttons.next')
-						: t('common:buttons.done')}
+					text={getButtonText()}
 				/>
 			</View>
 		</View>

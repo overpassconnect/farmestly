@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import SystemNavigationBar from 'react-native-system-navigation-bar';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { Linking } from 'react-native';
 
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -24,7 +25,7 @@ import { EditEntityScreen } from './src/components/screens/entities';
 // Core components
 import Field from './src/components/Field';
 import { BottomSheetContextProvider } from './src/components/sheets/BottomSheetContextProvider';
-import { GlobalContextProvider } from './src/components/context/GlobalContextProvider';
+import { GlobalContextProvider, useGlobalContext } from './src/components/context/GlobalContextProvider';
 import { LanguageContextProvider } from './src/components/context/LanguageContextProvider';
 import TabNavigator from './src/components/TabNavigator';
 import { UnitsWrapper } from './src/components/UnitsWrpper';
@@ -34,6 +35,99 @@ import colors from './src/globals/colors';
 // Create stack navigator
 const Stack = createNativeStackNavigator();
 
+// Deep link configuration
+const linking = {
+	prefixes: ['farmestly://'],
+	config: {
+		screens: {
+			// Map deep link paths to screens
+			// farmestly://emailVerified?status=success will be handled via onStateChange
+		}
+	}
+};
+
+// Component to handle deep links with access to GlobalContext
+const DeepLinkHandler = ({ children }) => {
+	const { refresh } = useGlobalContext();
+
+	const handleDeepLink = useCallback(async (url) => {
+		if (!url) return;
+
+		try {
+			// Parse URL manually since URL API isn't fully supported in React Native
+			// Expected format: farmestly://emailVerified?status=success
+			const [scheme, rest] = url.split('://');
+			if (!rest || scheme !== 'farmestly') return;
+
+			const [path, queryString] = rest.split('?');
+			const params = {};
+			if (queryString) {
+				queryString.split('&').forEach(pair => {
+					const [key, value] = pair.split('=');
+					if (key) params[key] = decodeURIComponent(value || '');
+				});
+			}
+
+			// Handle farmestly://emailVerified?status=...
+			if (path === 'emailVerified') {
+				const status = params.status;
+
+				if (status === 'success') {
+					// Refresh data to get updated emailVerified status
+					await refresh();
+					Toast.show({
+						type: 'success',
+						text1: 'Email Verified',
+						text2: 'Your email address has been successfully verified.',
+						position: 'top',
+						visibilityTime: 4000,
+						topOffset: 60,
+						autoHide: true
+					});
+				} else if (status === 'error') {
+					Toast.show({
+						type: 'error',
+						text1: 'Verification Failed',
+						text2: 'There was a problem verifying your email. Please try again.',
+						position: 'top',
+						visibilityTime: 4000,
+						topOffset: 60,
+						autoHide: true
+					});
+				} else if (status === 'expired') {
+					Toast.show({
+						type: 'error',
+						text1: 'Link Expired',
+						text2: 'This verification link has expired. Please request a new one.',
+						position: 'top',
+						visibilityTime: 4000,
+						topOffset: 60,
+						autoHide: true
+					});
+				}
+			}
+		} catch (error) {
+			console.error('Error handling deep link:', error);
+		}
+	}, [refresh]);
+
+	useEffect(() => {
+		// Handle deep link when app is opened from a link
+		Linking.getInitialURL().then(handleDeepLink);
+
+		// Handle deep link when app is already open
+		const subscription = Linking.addEventListener('url', ({ url }) => {
+			handleDeepLink(url);
+		});
+
+		return () => {
+			subscription.remove();
+		};
+	}, [handleDeepLink]);
+
+	return children;
+};
+
 const App = () => {
 
 	return (
@@ -41,14 +135,15 @@ const App = () => {
 			<GlobalContextProvider>
 				<LanguageContextProvider>
 					<UnitsWrapper>
-						<StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-						<SafeAreaView style={{ flex: 1, backgroundColor: 'black' }}  >
-							<KeyboardProvider
-								statusBarTranslucent
-								navigationBarTranslucent
-							>
-								<NavigationContainer>
-									<BottomSheetContextProvider>
+						<DeepLinkHandler>
+							<StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+							<SafeAreaView style={{ flex: 1, backgroundColor: 'black' }}  >
+								<KeyboardProvider
+									statusBarTranslucent
+									navigationBarTranslucent
+								>
+									<NavigationContainer linking={linking}>
+										<BottomSheetContextProvider>
 										<Stack.Navigator
 											initialRouteName="Splash"
 											screenOptions={{
@@ -84,10 +179,11 @@ const App = () => {
 											<Stack.Screen name="FiltersScreen" component={FiltersScreen} />
 											<Stack.Screen name="TemplateWizardScreen" component={TemplateWizardScreen} />
 										</Stack.Navigator>
-									</BottomSheetContextProvider>
-								</NavigationContainer>
-							</KeyboardProvider>
-						</SafeAreaView>
+										</BottomSheetContextProvider>
+									</NavigationContainer>
+								</KeyboardProvider>
+							</SafeAreaView>
+						</DeepLinkHandler>
 					</UnitsWrapper>
 				</LanguageContextProvider>
 			</GlobalContextProvider>

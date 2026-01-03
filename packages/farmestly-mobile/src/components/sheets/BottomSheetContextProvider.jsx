@@ -66,22 +66,47 @@ const BottomSheetProvider = ({ children }) => {
 	}, [isOpen, isDismissible]);
 
 	const openBottomSheet = useCallback((newContent, options = {}) => {
-		// Dismiss keyboard when opening bottom sheet
-		Keyboard.dismiss();
+		let hasOpened = false;
 
-		if (options.snapPoints) {
-			setSnapPoints(options.snapPoints);
+		const openSheet = () => {
+			if (hasOpened) return;
+			hasOpened = true;
+
+			if (options.snapPoints) {
+				setSnapPoints(options.snapPoints);
+			}
+			onOpenedRef.current = options.onOpened || null;
+			hasCalledOnOpened.current = false;
+			onDismissRef.current = options.onDismiss || null;
+			setIsDismissible(options.isDismissible !== false);
+			setBorderColor(options.borderColor || null);
+			setEnableBackdrop(options.enableBackdrop !== false);
+			setEnableDynamicSizing(options.enableDynamicSizing === true);
+			setContent(newContent);
+			setIsOpen(true);
+			currentPosition.current = 0;
+		};
+
+		// Check if keyboard is visible and dismiss it before opening sheet
+		const isKeyboardVisible = Keyboard.isVisible?.() ?? false;
+
+		if (isKeyboardVisible) {
+			// Wait for keyboard to hide before opening sheet
+			const subscription = Keyboard.addListener('keyboardDidHide', () => {
+				subscription.remove();
+				openSheet();
+			});
+			Keyboard.dismiss();
+
+			// Fallback timeout in case keyboardDidHide doesn't fire
+			setTimeout(() => {
+				subscription.remove();
+				openSheet();
+			}, 300);
+		} else {
+			Keyboard.dismiss();
+			openSheet();
 		}
-		onOpenedRef.current = options.onOpened || null;
-		hasCalledOnOpened.current = false;
-		onDismissRef.current = options.onDismiss || null;
-		setIsDismissible(options.isDismissible !== false);
-		setBorderColor(options.borderColor || null);
-		setEnableBackdrop(options.enableBackdrop !== false);
-		setEnableDynamicSizing(options.enableDynamicSizing === true);
-		setContent(newContent);
-		setIsOpen(true);
-		currentPosition.current = 0;
 	}, []);
 
 	const closeBottomSheet = useCallback(() => {

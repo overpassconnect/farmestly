@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
 	View,
 	Text,
@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 import colors from '../../../globals/colors';
 import { useGlobalContext } from '../../context/GlobalContextProvider';
 import { useLanguage } from '../../context/LanguageContextProvider';
-import { useNavigation } from '@react-navigation/core';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useUnits } from '../../../providers/UnitsProvider';
 import { Storage } from '../../../utils/storage';
 import { useBottomSheet } from '../../sheets/BottomSheetContextProvider';
@@ -26,6 +26,7 @@ import PrimaryButton from '../../ui/core/PrimaryButton';
 import OptionPicker from '../../ui/core/OptionPicker';
 import ListItem from '../../ui/list/ListItem';
 import JobService from '../../../utils/JobService';
+import VerificationBadge from '../../ui/core/VerificationBadge';
 
 const BASE_URL = config.BASE_URL;
 
@@ -91,6 +92,7 @@ const SettingInput = ({
 							<Text
 								style={[styles.valueText, isSecure && styles.secureText]}
 								numberOfLines={1}
+								ellipsizeMode="tail"
 							>
 								{localValue || 'Not set'}
 							</Text>
@@ -149,7 +151,14 @@ const SettingsScreen = () => {
 	const { unit: getCurrentUnit, setUnit, getAvailableUnits } = useUnits();
 
 	const navigation = useNavigation();
-	const { account, localPreferences, setLocalPreference } = useGlobalContext();
+	const { account, localPreferences, setLocalPreference, refresh } = useGlobalContext();
+
+	// Refresh account data when screen is focused (e.g., after email verification)
+	useFocusEffect(
+		useCallback(() => {
+			refresh();
+		}, [refresh])
+	);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isLoading2, setIsLoading2] = useState(false);
 	const { openBottomSheet, closeBottomSheet } = useBottomSheet();
@@ -223,10 +232,10 @@ const SettingsScreen = () => {
 			key: u.key,
 			label: u.symbol,
 			displayLabel: u.key === 'hectares' ? t('common:units.hectares') :
-						  u.key === 'acres' ? t('common:units.acres') :
-						  u.key === 'm2' ? t('common:units.squareMeters') :
-						  u.key === 'stremma' ? t('common:units.stremma') :
-						  u.symbol
+				u.key === 'acres' ? t('common:units.acres') :
+					u.key === 'm2' ? t('common:units.squareMeters') :
+						u.key === 'stremma' ? t('common:units.stremma') :
+							u.symbol
 		}));
 
 		const content = (
@@ -261,9 +270,9 @@ const SettingsScreen = () => {
 			key: u.key,
 			label: u.symbol,
 			displayLabel: u.key === 'm' ? t('common:units.meters') :
-						  u.key === 'ft' ? t('common:units.feet') :
-						  u.key === 'yd' ? t('common:units.yards') :
-						  u.symbol
+				u.key === 'ft' ? t('common:units.feet') :
+					u.key === 'yd' ? t('common:units.yards') :
+						u.symbol
 		}));
 
 		const content = (
@@ -298,9 +307,9 @@ const SettingsScreen = () => {
 			key: u.key,
 			label: u.symbol,
 			displayLabel: u.key === 'L' ? t('common:units.liters') :
-						  u.key === 'mL' ? t('common:units.milliliters') :
-						  u.key === 'gal' ? t('common:units.gallons') :
-						  u.symbol
+				u.key === 'mL' ? t('common:units.milliliters') :
+					u.key === 'gal' ? t('common:units.gallons') :
+						u.symbol
 		}));
 
 		const content = (
@@ -335,9 +344,9 @@ const SettingsScreen = () => {
 			key: u.key,
 			label: u.symbol,
 			displayLabel: u.key === 'kg' ? t('common:units.kilograms') :
-						  u.key === 'g' ? t('common:units.grams') :
-						  u.key === 'lb' ? t('common:units.pounds') :
-						  u.symbol
+				u.key === 'g' ? t('common:units.grams') :
+					u.key === 'lb' ? t('common:units.pounds') :
+						u.symbol
 		}));
 
 		const content = (
@@ -445,6 +454,16 @@ const SettingsScreen = () => {
 						onSave={() => ({ success: true })}
 						onPress={() => navigation.navigate('EmailSettingsScreen')}
 					/>
+					{account?.emailPending ? (
+						<View style={styles.verificationStatus}>
+							<VerificationBadge verified={false} size="small" />
+							<Text style={styles.pendingEmailText}>({account.emailPending})</Text>
+						</View>
+					) : account?.email ? (
+						<View style={styles.verificationStatus}>
+							<VerificationBadge verified={true} size="small" />
+						</View>
+					) : null}
 				</SettingsSection>
 
 				{/* Language & Unit Preferences */}
@@ -607,7 +626,7 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		color: colors.PRIMARY,
 		fontFamily: 'Geologica-Regular',
-		flex: 1,
+		flexShrink: 0,
 	},
 	errorText: {
 		fontSize: 12,
@@ -626,13 +645,16 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'flex-end',
-		maxWidth: '100%',
+		flex: 1,
+		flexShrink: 1,
 	},
 	valueText: {
 		fontSize: 16,
 		color: colors.PRIMARY_LIGHT,
 		marginRight: 8,
 		fontFamily: 'Geologica-Regular',
+		textAlign: 'right',
+		flexShrink: 1,
 	},
 	secureText: {
 		letterSpacing: 1,
@@ -655,6 +677,18 @@ const styles = StyleSheet.create({
 		color: colors.SECONDARY,
 		textAlign: 'center',
 		minWidth: 36,
+	},
+	verificationStatus: {
+		flexDirection: 'row',
+		justifyContent: 'flex-end',
+		alignItems: 'center',
+		paddingTop: 6,
+	},
+	pendingEmailText: {
+		fontSize: 14,
+		fontFamily: 'Geologica-Regular',
+		color: colors.SECONDARY,
+		marginLeft: 6,
 	},
 });
 

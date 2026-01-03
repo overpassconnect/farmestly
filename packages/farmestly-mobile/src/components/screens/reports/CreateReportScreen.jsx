@@ -78,8 +78,10 @@ const CreateReportScreen = () => {
 	const [isPrecheckLoading, setIsPrecheckLoading] = useState(false);
 	const [precheckResult, setPrecheckResult] = useState({ canEmail: true, canDownload: true, recordCount: null });
 
-	// Email is already in account from GlobalContext - no need to fetch
+	// Email verification status
 	const hasEmail = !!account?.email;
+	const emailVerified = account?.emailVerified === true;
+	const hasVerifiedEmail = hasEmail && emailVerified;
 
 	// Create translated report types
 	const REPORT_TYPES = REPORT_TYPE_IDS.map(type => ({
@@ -548,10 +550,11 @@ const CreateReportScreen = () => {
 
 						{DELIVERY_METHODS.map((method) => {
 							let isDisabled = false;
-							if (method.id === 'both' && (!precheckResult.canEmail || !precheckResult.canDownload)) {
-								isDisabled = true;
-							} else if (method.id === 'email' && !precheckResult.canEmail) {
-								isDisabled = true;
+							// Disable email options if email is not verified
+							if (method.id === 'both') {
+								isDisabled = !hasVerifiedEmail || !precheckResult.canEmail || !precheckResult.canDownload;
+							} else if (method.id === 'email') {
+								isDisabled = !hasVerifiedEmail || !precheckResult.canEmail;
 							} else if (method.id === 'download' && !precheckResult.canDownload) {
 								isDisabled = true;
 							}
@@ -566,6 +569,18 @@ const CreateReportScreen = () => {
 								/>
 							);
 						})}
+
+						{/* Email verification info text */}
+						{!hasEmail && (
+							<Text style={styles.emailInfoText}>
+								Add an email address in Settings to enable email delivery.
+							</Text>
+						)}
+						{hasEmail && !emailVerified && (
+							<Text style={styles.emailInfoText}>
+								Email delivery requires a verified email address.
+							</Text>
+						)}
 					</View>
 
 					{/* Button Container */}
@@ -772,6 +787,13 @@ const styles = StyleSheet.create({
 		width: '100%',
 		marginTop: 24,
 		gap: 12,
+	},
+	emailInfoText: {
+		fontSize: 12,
+		fontFamily: 'Geologica-Regular',
+		color: colors.PRIMARY_LIGHT,
+		marginTop: 8,
+		marginLeft: 36,
 	},
 });
 

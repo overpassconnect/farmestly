@@ -7,7 +7,8 @@
 		"FIELD_UPDATED": "Field shape updated successfully.",
 		"JOB_UPDATED": "Job updated successfully.",
 		"REPORT_QUEUED": "The report will be sent to your email shortly!",
-		"REPORT_READY": "Your report is ready to view."
+		"REPORT_READY": "Your report is ready to view.",
+		"VERIFICATION_EMAIL_SENT": "Verification email sent. Check your inbox."
 	},
 	"errors": {
 		"SIGNED_OUT": "Your session has expired. Please log in again.",
@@ -51,6 +52,8 @@
 		"SERVICE_UNAVAILABLE": "Service temporarily unavailable.",
 		"GATEWAY_TIMEOUT": "Server took too long to respond.",
 		"UNKNOWN": "An unexpected error occurred.",
-		"REPORT_FAILED": "Failed to generate report. Please try again."
+		"REPORT_FAILED": "Failed to generate report. Please try again.",
+		"NO_PENDING_VERIFICATION": "No pending verification. Your email may already be verified.",
+		"VERIFICATION_ALREADY_PENDING": "A verification email was already sent. Please check your inbox or wait before requesting again."
 	}
 }
