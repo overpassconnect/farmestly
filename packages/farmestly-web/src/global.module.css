@@ -1,0 +1,509 @@
+/* ============================================
+   BUTTONS
+   ============================================ */
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 40px;
+	padding-top: 0;
+	padding-right: 24px;
+	padding-bottom: 0;
+	padding-left: 24px;
+	border-top-left-radius: 24px;
+	border-top-right-radius: 24px;
+	border-bottom-right-radius: 24px;
+	border-bottom-left-radius: 24px;
+	font-family: 'Geologica', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	font-weight: 700;
+	font-size: 15px;
+	line-height: 1;
+	cursor: pointer;
+	transition-property: opacity, background-color, border-color;
+	transition-duration: 0.2s;
+	transition-timing-function: ease;
+	border-style: solid;
+	border-width: 2px;
+	text-decoration: none;
+}
+
+.btn:hover {
+	opacity: 0.85;
+}
+
+.btn:active {
+	opacity: 0.7;
+}
+
+.btn:disabled {
+	cursor: not-allowed;
+	opacity: 1;
+}
+
+/* Filled (default) */
+.btnFilled {
+	background-color: var(--color-secondary);
+	border-color: var(--color-secondary);
+	color: var(--color-white);
+}
+
+.btnFilled:disabled {
+	background-color: var(--color-disabled);
+	border-color: var(--color-disabled);
+	color: var(--color-disabled-text);
+}
+
+/* Outline */
+.btnOutline {
+	background-color: var(--color-white);
+	border-color: var(--color-secondary);
+	color: var(--color-secondary);
+}
+
+.btnOutline:disabled {
+	border-color: var(--color-disabled);
+	color: var(--color-disabled-text);
+}
+
+/* Ghost */
+.btnGhost {
+	background-color: transparent;
+	border-color: transparent;
+	color: var(--color-primary);
+}
+
+.btnGhost:disabled {
+	color: var(--color-disabled-text);
+}
+
+/* Red */
+.btnRed {
+	background-color: #FF4444;
+	border-color: #FF4444;
+	color: var(--color-white);
+}
+
+/* Red Outline */
+.btnRedOutline {
+	background-color: var(--color-white);
+	border-color: #FF3B30;
+	color: #FF3B30;
+}
+
+/* Full width modifier */
+.btnFullWidth {
+	width: 100%;
+}
+
+/* Button with icon */
+.btnIcon {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--spacing-sm);
+}
+
+/* ============================================
+   INPUTS
+   ============================================ */
+
+.inputContainer {
+	margin-bottom: var(--spacing-lg);
+}
+
+.inputLabel {
+	display: block;
+	font-family: var(--font-family);
+	font-weight: 400;
+	font-size: 19px;
+	color: var(--color-primary);
+	margin-bottom: 3px;
+}
+
+.inputDescription {
+	font-family: var(--font-family);
+	font-weight: 400;
+	font-size: 15px;
+	color: var(--color-primary-light);
+	margin-bottom: var(--spacing-sm);
+	margin-top: -2px;
+}
+
+.input {
+	display: block;
+	width: 100%;
+	height: 46px;
+	padding-top: 8px;
+	padding-right: 12px;
+	padding-bottom: 8px;
+	padding-left: 12px;
+	font-family: var(--font-family);
+	font-weight: 400;
+	font-size: 17px;
+	line-height: 1.2;
+	color: var(--color-primary);
+	background-color: var(--color-secondary-light);
+	border-width: 1px;
+	border-style: solid;
+	border-color: var(--color-primary);
+	border-radius: var(--radius-md);
+	outline: none;
+	transition-property: border-color, background-color;
+	transition-duration: 0.2s;
+	transition-timing-function: ease;
+}
+
+.input::placeholder {
+	color: var(--color-primary-light);
+}
+
+.input:focus {
+	border-color: var(--color-secondary);
+}
+
+.inputError {
+	border-width: 1.5px;
+	border-color: var(--color-error);
+	background-color: #FFF2F2;
+}
+
+.inputWithUnit {
+	padding-right: 60px;
+}
+
+/* Input wrapper for unit display */
+.inputWrapper {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+.inputUnit {
+	position: absolute;
+	right: 12px;
+	font-family: var(--font-family);
+	font-weight: 500;
+	font-size: 16px;
+	color: var(--color-secondary);
+	pointer-events: none;
+}
+
+/* Error text */
+.errorText {
+	font-family: var(--font-family);
+	font-weight: 400;
+	font-size: 14px;
+	color: var(--color-error);
+	margin-top: var(--spacing-xs);
+}
+
+/* ============================================
+   RADIO BUTTONS
+   ============================================ */
+
+.radioContainer {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	padding-top: 12px;
+	padding-right: 0;
+	padding-bottom: 12px;
+	padding-left: 0;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+	border-bottom-color: var(--color-secondary-light);
+	cursor: pointer;
+}
+
+.radioContainer:hover {
+	background-color: var(--color-secondary-light);
+}
+
+.radioContainerDisabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.radioContent {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 1;
+}
+
+.radioIcon {
+	width: 24px;
+	height: 24px;
+	margin-right: 12px;
+	object-fit: contain;
+}
+
+.radioTextContainer {
+	flex: 1;
+}
+
+.radioLabel {
+	font-family: var(--font-family);
+	font-weight: 400;
+	font-size: 16px;
+	color: var(--color-primary);
+}
+
+.radioDescription {
+	font-family: var(--font-family);
+	font-weight: 400;
+	font-size: 14px;
+	color: var(--color-primary-light);
+	margin-top: 2px;
+}
+
+.radio {
+	width: 22px;
+	height: 22px;
+	border-radius: 11px;
+	border-width: 2px;
+	border-style: solid;
+	border-color: var(--color-primary-light);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-left: 12px;
+	flex-shrink: 0;
+}
+
+.radioSelected {
+	border-color: var(--color-secondary);
+}
+
+.radioDot {
+	width: 12px;
+	height: 12px;
+	border-radius: 6px;
+	background-color: var(--color-secondary);
+}
+
+/* ============================================
+   CARDS / SECTIONS
+   ============================================ */
+
+.card {
+	background-color: var(--color-secondary-light);
+	border-radius: var(--radius-lg);
+	padding-top: var(--spacing-lg);
+	padding-right: var(--spacing-lg);
+	padding-bottom: var(--spacing-lg);
+	padding-left: var(--spacing-lg);
+}
+
+.cardWhite {
+	background-color: var(--color-white);
+	border-width: 1px;
+	border-style: solid;
+	border-color: var(--color-border-light);
+	border-radius: var(--radius-md);
+	padding-top: 14px;
+	padding-right: 14px;
+	padding-bottom: 14px;
+	padding-left: 14px;
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+
+.title {
+	font-family: var(--font-family);
+	font-weight: 700;
+	font-size: 24px;
+	color: var(--color-primary);
+	margin-bottom: var(--spacing-xxl);
+}
+
+.titleLarge {
+	font-family: var(--font-family);
+	font-weight: 500;
+	font-size: 28px;
+	color: var(--color-primary);
+}
+
+.titleHighlight {
+	color: var(--color-secondary);
+}
+
+.subtitle {
+	font-family: var(--font-family);
+	font-weight: 400;
+	font-size: 19px;
+	color: var(--color-primary-light);
+}
+
+.sectionTitle {
+	font-family: var(--font-family);
+	font-weight: 700;
+	font-size: 18px;
+	color: var(--color-primary);
+	margin-bottom: 6px;
+}
+
+.sectionDescription {
+	font-family: var(--font-family);
+	font-weight: 400;
+	font-size: 14px;
+	color: var(--color-primary-light);
+	margin-bottom: 12px;
+	line-height: 1.4;
+}
+
+.text {
+	font-family: var(--font-family);
+	font-weight: 400;
+	font-size: 16px;
+	color: var(--color-primary);
+}
+
+.textSmall {
+	font-family: var(--font-family);
+	font-weight: 400;
+	font-size: 14px;
+	color: var(--color-primary-light);
+}
+
+.textMuted {
+	color: var(--color-primary-light);
+}
+
+/* ============================================
+   LAYOUT
+   ============================================ */
+
+.container {
+	width: 100%;
+	max-width: 480px;
+	margin-left: auto;
+	margin-right: auto;
+	padding-top: var(--spacing-xxl);
+	padding-right: var(--spacing-xxl);
+	padding-bottom: var(--spacing-xxl);
+	padding-left: var(--spacing-xxl);
+}
+
+.containerCentered {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-height: 100vh;
+	text-align: center;
+}
+
+.buttonStack {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-md);
+	margin-top: var(--spacing-xl);
+}
+
+/* ============================================
+   ICONS / STATUS
+   ============================================ */
+
+.iconSuccess {
+	width: 80px;
+	height: 80px;
+	border-radius: 40px;
+	background-color: var(--color-success);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: var(--spacing-xxl);
+}
+
+.iconError {
+	width: 60px;
+	height: 60px;
+	border-radius: 40px;
+	/* background-color: var(--color-error); */
+	background-color: var(--color-primary);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: var(--spacing-xxl);
+}
+
+.iconPending {
+	width: 80px;
+	height: 80px;
+	border-radius: 40px;
+	background-color: var(--color-warning);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: var(--spacing-xxl);
+}
+
+.checkmark {
+	font-size: 40px;
+	color: var(--color-white);
+	line-height: 1;
+}
+
+/* ============================================
+   SPINNER / LOADING
+   ============================================ */
+
+.spinner {
+	width: 40px;
+	height: 40px;
+	border-width: 4px;
+	border-style: solid;
+	border-color: var(--color-secondary-light);
+	border-top-color: var(--color-secondary);
+	border-radius: 50%;
+	animation-name: spin;
+	animation-duration: 0.8s;
+	animation-timing-function: linear;
+	animation-iteration-count: infinite;
+}
+
+.spinnerSmall {
+	width: 20px;
+	height: 20px;
+	border-width: 2px;
+}
+
+@keyframes spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* ============================================
+   NOTE / INFO BOX
+   ============================================ */
+
+.noteContainer {
+	border-left-width: 3px;
+	border-left-style: solid;
+	border-left-color: var(--color-secondary);
+	padding-left: var(--spacing-md);
+	margin-bottom: var(--spacing-lg);
+}
+
+.noteTitle {
+	font-family: var(--font-family);
+	font-weight: 700;
+	font-size: 18px;
+	color: var(--color-primary);
+	margin-bottom: var(--spacing-sm);
+}
+
+.noteText {
+	font-family: var(--font-family);
+	font-weight: 400;
+	font-size: 16px;
+	color: var(--color-primary);
+}

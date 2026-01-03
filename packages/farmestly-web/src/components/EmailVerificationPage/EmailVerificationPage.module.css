@@ -1,0 +1,159 @@
+.pageContainer {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-height: 100vh;
+	padding-top: 20px;
+	padding-right: 20px;
+	padding-bottom: 20px;
+	padding-left: 20px;
+	background: linear-gradient(135deg, #fbf2ecff 0%, #fff5eb 50%, #ffe8d6 100%);
+}
+
+.verificationCard {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	width: 100%;
+	max-width: 500px;
+	padding-top: 48px;
+	padding-right: 32px;
+	padding-bottom: 48px;
+	padding-left: 32px;
+	background-color: #ffffff;
+	border-top-left-radius: 12px;
+	border-top-right-radius: 12px;
+	border-bottom-right-radius: 12px;
+	border-bottom-left-radius: 12px;
+	box-shadow: 0 4px 12px rgba(66, 33, 11, 0.12);
+	text-align: center;
+}
+
+.logo {
+	width: 220px;
+	/* height: 120px; */
+	object-fit: contain;
+	margin-bottom: 50px;
+}
+
+.iconSvg {
+	width: 32px;
+	height: 32px;
+	color: #ffffff;
+}
+
+.iconSuccess {
+	width: 60px;
+	height: 60px;
+	border-top-left-radius: 30px;
+	border-top-right-radius: 30px;
+	border-bottom-right-radius: 30px;
+	border-bottom-left-radius: 30px;
+	background-color: #34C759;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 24px;
+}
+
+.iconError {
+	width: 60px;
+	height: 60px;
+	border-top-left-radius: 30px;
+	border-top-right-radius: 30px;
+	border-bottom-right-radius: 30px;
+	border-bottom-left-radius: 30px;
+	background-color: #42210B;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 24px;
+}
+
+.iconPending {
+	width: 60px;
+	height: 60px;
+	border-top-left-radius: 30px;
+	border-top-right-radius: 30px;
+	border-bottom-right-radius: 30px;
+	border-bottom-left-radius: 30px;
+	background-color: #E37F1B;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 24px;
+}
+
+.messageText {
+	text-align: center;
+	margin-top: 12px;
+	margin-bottom: 16px;
+	max-width: 320px;
+	line-height: 1.5;
+	font-size: 15px;
+}
+
+.title {
+	font-size: 22px;
+	font-weight: 500;
+	color: #42210B;
+	margin-bottom: 8px;
+}
+
+.fallbackText {
+	margin-top: 16px;
+	text-align: center;
+	max-width: 280px;
+}
+
+.desktopNote {
+	margin-top: 8px;
+	text-align: center;
+	max-width: 280px;
+	padding-top: 12px;
+	padding-right: 16px;
+	padding-bottom: 12px;
+	padding-left: 16px;
+	/* background-color: #fbf2ecff; */
+	border-top-left-radius: 10px;
+	border-top-right-radius: 10px;
+	border-bottom-right-radius: 10px;
+	border-bottom-left-radius: 10px;
+	color: #E37F1B;
+}
+
+.footer {
+	margin-top: 32px;
+	font-family: 'Geologica', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	font-weight: 400;
+	font-size: 12px;
+	color: #A09085;
+	text-align: center;
+}
+
+@media (max-width: 480px) {
+	.verificationCard {
+		padding-top: 32px;
+		padding-right: 24px;
+		padding-bottom: 32px;
+		padding-left: 24px;
+		border-top-left-radius: 10px;
+		border-top-right-radius: 10px;
+		border-bottom-right-radius: 10px;
+		border-bottom-left-radius: 10px;
+	}
+
+	.logo {
+		width: 100px;
+		height: 100px;
+	}
+
+	.title {
+		font-size: 20px;
+	}
+
+	.messageText {
+		font-size: 14px;
+	}
+}
