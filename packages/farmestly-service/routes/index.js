@@ -15,6 +15,9 @@ router.use('/phoneVerify', require('./auth/phoneVerify'));
 router.use('/checkUsername', require('./auth/checkUsername'));
 router.use('/auth/verifyEmail', require('./auth/verifyEmail'));
 
+// Report download uses signed URLs for auth, not session
+router.use('/report/download', require('./report/download'));
+
 // ============================================
 // PROTECTED ROUTES (auth required)
 // ============================================

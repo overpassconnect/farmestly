@@ -1,6 +1,7 @@
 process.env.NODE_ENV !== 'production' && require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const { MongoStore } = require('connect-mongo');
@@ -9,11 +10,25 @@ const PuppeteerService = require('./utils/PuppeteerService');
 const { ensureIndexes: ensureJobTemplateIndexes } = require('./routes/job/jobTemplate');
 const { ReportJobManager } = require('./utils/ReportJobManager');
 const cron = require('node-cron');
+const { initializeRedisClient } = require('./middleware/rateLimiter');
 
 const app = express();
 
 const G_DB__DATABASE_NAME = "appdb";
 const SESSION_SECRET = process.env.SESSION_SECRET || 'change-this-in-production';
+const WEB_URL = process.env.WEB_URL || 'https://my.farmestly.dev-staging.overpassconnect.com';
+
+// CORS configuration
+const corsOptions = {
+	origin: [
+		WEB_URL,
+		'http://localhost:3001',
+		'http://localhost:8080'
+	],
+	credentials: true,
+	methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+	allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
 
 
 // app.use((req, res, next) => {
@@ -30,6 +45,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'change-this-in-production'
 
 
 app.disable('x-powered-by');
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -93,6 +109,20 @@ db.connect()
 	}).then(() => {
 		console.log('PuppeteerService initialized');
 
+		// Initialize Redis client for rate limiting
+		return initializeRedisClient();
+	}).then(() => {
+		console.log('Rate limiting Redis client initialized');
+
+		// Initialize rate limiters for routes that need them
+		const { initializeLimiters: initEmailLimiters } = require('./routes/settings/email');
+		const { initializeLimiters: initPhoneLimiters } = require('./routes/auth/phoneVerify');
+		const { initializeLimiters: initReportLimiters } = require('./routes/report');
+
+		initEmailLimiters();
+		initPhoneLimiters();
+		initReportLimiters();
+
 		// Initialize JobTemplates collection indexes
 		return ensureJobTemplateIndexes();
 	}).then(() => {
@@ -122,6 +152,12 @@ db.connect()
 			console.log('Shutting down...');
 			try {
 				await PuppeteerService.getInstance().shutdown();
+				// Close rate limiting Redis client
+				const { getRedisClient } = require('./middleware/rateLimiter');
+				const rateLimitRedis = getRedisClient();
+				if (rateLimitRedis) {
+					await rateLimitRedis.quit();
+				}
 				await db.getClient().close();
 				console.log('Graceful shutdown complete');
 				process.exit(0);

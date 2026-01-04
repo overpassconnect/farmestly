@@ -175,6 +175,7 @@ router.post('/record', validate(createJobRules), async (req, res) => {
 		// Handle sow job: create cultivation
 		if (body.type === 'sow') {
 			const cultData = body.cultivation || {};
+			const sowData = body.data?.sow || {};
 			const tempId = cultData.id && cultData.id.startsWith('temp_') ? cultData.id : null;
 
 			const cultivation = {
@@ -182,9 +183,14 @@ router.post('/record', validate(createJobRules), async (req, res) => {
 				accountId: account._id,
 				tempId: tempId,
 				fieldId: body.fieldId,
+				// From cultivation reference
 				crop: cultData.crop || '',
 				variety: cultData.variety || '',
-				eppoCode: cultData.eppoCode || body.data?.sow?.eppoCode || null,
+				// From data.sow (seed-specific)
+				eppoCode: sowData.eppoCode || null,
+				lotNumber: sowData.lotNumber || null,
+				seedManufacturer: sowData.seedManufacturer || null,
+				// Lifecycle
 				status: 'active',
 				startTime: jobDoc.startedAt,
 				startJobId: jobDoc._id,
@@ -215,7 +221,7 @@ router.post('/record', validate(createJobRules), async (req, res) => {
 				}
 			);
 
-			// Set cultivation reference in job
+			// Set cultivation reference in job (minimal)
 			jobDoc.cultivation = {
 				id: cultivation._id.toString(),
 				crop: cultivation.crop,
@@ -228,6 +234,9 @@ router.post('/record', validate(createJobRules), async (req, res) => {
 				fieldId: cultivation.fieldId,
 				crop: cultivation.crop,
 				variety: cultivation.variety,
+				eppoCode: cultivation.eppoCode,
+				lotNumber: cultivation.lotNumber,
+				seedManufacturer: cultivation.seedManufacturer,
 				status: cultivation.status,
 				startTime: cultivation.startTime
 			};

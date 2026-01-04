@@ -7,10 +7,49 @@ const { ok, fail } = require('../../utils/response');
 const { validate } = require('../../middleware/validation');
 const { ObjectId } = require('mongodb');
 const EmailQueue = require('../../utils/EmailQueue');
+const { createEmailChangeLimiter, createEmailResendLimiter } = require('../../middleware/rateLimiter');
 
 const VERIFICATION_EXPIRY_HOURS = parseInt(process.env.EMAIL_VERIFICATION_EXPIRY_HOURS, 10) || 24;
 const RESEND_COOLDOWN_SECONDS = parseInt(process.env.EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS, 10) || 60;
 const WEB_URL = process.env.WEB_URL || 'https://my.farmestly.dev-staging.overpassconnect.com';
+
+// 6-month cooldown for changing email (in milliseconds)
+// Default: 6 months = 180 days = 15,552,000,000 ms
+const EMAIL_CHANGE_COOLDOWN_MS = parseInt(process.env.EMAIL_CHANGE_COOLDOWN_MS, 10) || 180 * 24 * 60 * 60 * 1000;
+
+// Initialize rate limiters (will be set after Redis is ready)
+let emailChangeLimiter = null;
+let emailResendLimiter = null;
+
+/**
+ * Initialize rate limiters - call after Redis is connected
+ */
+function initializeLimiters() {
+	try {
+		emailChangeLimiter = createEmailChangeLimiter();
+		emailResendLimiter = createEmailResendLimiter();
+		console.log('[Email] Rate limiters initialized');
+	} catch (err) {
+		console.warn('[Email] Rate limiters not initialized (Redis not ready):', err.message);
+	}
+}
+
+/**
+ * Middleware to apply rate limiter if initialized
+ */
+function applyEmailChangeLimiter(req, res, next) {
+	if (emailChangeLimiter) {
+		return emailChangeLimiter(req, res, next);
+	}
+	next();
+}
+
+function applyEmailResendLimiter(req, res, next) {
+	if (emailResendLimiter) {
+		return emailResendLimiter(req, res, next);
+	}
+	next();
+}
 
 /**
  * Generate a cryptographically secure verification token
@@ -35,39 +74,52 @@ function buildVerificationEmailHtml(verificationUrl, farmName) {
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Verify Your Email</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f5f5f5;">
-	<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f5f5f5;">
+<body style="margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fbf2ec;">
+	<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fbf2ec;">
 		<tr>
 			<td style="padding: 40px 20px;">
-				<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-					<!-- Header -->
+				<!-- Logo -->
+				<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto;">
 					<tr>
-						<td style="padding: 40px 40px 20px; text-align: center; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 8px 8px 0 0;">
-							<h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">Farmestly</h1>
+						<td style="text-align: center; padding-bottom: 32px;">
+							<img src="${WEB_URL}/assets/farmestly_logo.png" alt="Farmestly" width="180" style="display: block; margin: 0 auto;">
 						</td>
 					</tr>
+				</table>
+				<!-- Card -->
+				<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(66, 33, 11, 0.12);">
 					<!-- Content -->
 					<tr>
-						<td style="padding: 40px;">
-							<h2 style="margin: 0 0 20px; color: #1f2937; font-size: 20px; font-weight: 600;">Verify Your Email Address</h2>
-							${farmName ? `<p style="margin: 0 0 20px; color: #4b5563; font-size: 16px; line-height: 1.5;">Hello from ${farmName}!</p>` : ''}
-							<p style="margin: 0 0 20px; color: #4b5563; font-size: 16px; line-height: 1.5;">Please click the button below to verify your email address. This link will expire in ${VERIFICATION_EXPIRY_HOURS} hours.</p>
+						<td style="padding: 48px 40px;">
+							<h1 style="margin: 0 0 16px; color: #42210B; font-size: 22px; font-weight: 500; text-align: center;">Verify Your Email Address</h1>
+							${farmName ? `<p style="margin: 0 0 16px; color: #A09085; font-size: 15px; line-height: 1.5; text-align: center;">Hello from ${farmName}!</p>` : ''}
+							<p style="margin: 0 0 24px; color: #A09085; font-size: 15px; line-height: 1.5; text-align: center;">Please click the button below to verify your email address. This link will expire in ${VERIFICATION_EXPIRY_HOURS} hours.</p>
 							<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
 								<tr>
-									<td style="padding: 20px 0; text-align: center;">
-										<a href="${verificationUrl}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 6px;">Verify Email</a>
+									<td style="padding: 16px 0; text-align: center;">
+										<!--[if mso]>
+										<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${verificationUrl}" style="height:40px;v-text-anchor:middle;width:200px;" arcsize="60%" strokecolor="#E37F1B" fillcolor="#E37F1B">
+										<w:anchorlock/>
+										<center style="color:#ffffff;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:bold;">Verify Email</center>
+										</v:roundrect>
+										<![endif]-->
+										<!--[if !mso]><!-->
+										<a href="${verificationUrl}" style="display: inline-block; padding: 12px 32px; background-color: #E37F1B; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; border-radius: 24px; mso-hide: all;">Verify Email</a>
+										<!--<![endif]-->
 									</td>
 								</tr>
 							</table>
-							<p style="margin: 20px 0 0; color: #6b7280; font-size: 14px; line-height: 1.5;">If the button doesn't work, copy and paste this link into your browser:</p>
-							<p style="margin: 10px 0 0; color: #3b82f6; font-size: 14px; word-break: break-all;">${verificationUrl}</p>
-							<p style="margin: 30px 0 0; color: #6b7280; font-size: 14px; line-height: 1.5;">If you didn't request this verification, you can safely ignore this email.</p>
+							<p style="margin: 24px 0 0; color: #A09085; font-size: 13px; line-height: 1.5; text-align: center;">If the button doesn't work, copy and paste this link into your browser:</p>
+							<p style="margin: 8px 0 0; color: #E37F1B; font-size: 13px; word-break: break-all; text-align: center;">${verificationUrl}</p>
+							<p style="margin: 24px 0 0; color: #A09085; font-size: 13px; line-height: 1.5; text-align: center;">If you didn't request this verification, you can safely ignore this email.</p>
 						</td>
 					</tr>
-					<!-- Footer -->
+				</table>
+				<!-- Footer -->
+				<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto;">
 					<tr>
-						<td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; text-align: center;">
-							<p style="margin: 0; color: #9ca3af; font-size: 12px;">&copy; ${new Date().getFullYear()} Farmestly. All rights reserved.</p>
+						<td style="padding: 24px 0; text-align: center;">
+							<p style="margin: 0; color: #A09085; font-size: 12px;">&copy; ${new Date().getFullYear()} Farmestly. All rights reserved.</p>
 						</td>
 					</tr>
 				</table>
@@ -101,8 +153,9 @@ async function sendVerificationEmail(email, token, farmName) {
 /**
  * PUT /settings/email
  * Submit or change email address, triggering verification flow
+ * Rate limited + 6-month cooldown for verified email changes
  */
-router.put('/', validate([
+router.put('/', applyEmailChangeLimiter, validate([
 	body('email').isEmail().withMessage('email.invalid').normalizeEmail()
 ]), async (req, res) => {
 	try {
@@ -122,12 +175,29 @@ router.put('/', validate([
 
 		// If user already has a verified email and it's the same as the new one, no action needed
 		if (currentEmail === newEmail && isEmailVerified) {
-			return res.json(ok({ status: 'already_verified' }));
+			return res.status(409).json(fail('EMAIL_ALREADY_VERIFIED'));
 		}
 
-		// If there's already a pending verification for this exact email, don't create a new token
-		if (account.metadata.emailVerification?.pendingEmail === newEmail) {
-			return res.json(ok({ status: 'verification_pending' }));
+		// 6-month cooldown check: only applies when changing a VERIFIED email to a different one
+		if (currentEmail && isEmailVerified && currentEmail !== newEmail) {
+			const lastEmailChange = account.metadata.lastEmailChangeAt;
+			if (lastEmailChange) {
+				const timeSinceLastChange = Date.now() - new Date(lastEmailChange).getTime();
+				if (timeSinceLastChange < EMAIL_CHANGE_COOLDOWN_MS) {
+					const remainingMs = EMAIL_CHANGE_COOLDOWN_MS - timeSinceLastChange;
+					const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+					return res.status(429).json(fail('EMAIL_CHANGE_COOLDOWN', {
+						remainingDays,
+						nextChangeAllowedAt: new Date(Date.now() + remainingMs).toISOString()
+					}));
+				}
+			}
+		}
+
+		// If there's already a pending verification for this exact email and it hasn't expired, don't create a new token
+		const existingVerification = account.metadata.emailVerification;
+		if (existingVerification?.pendingEmail === newEmail && new Date() < new Date(existingVerification.expiresAt)) {
+			return res.status(409).json(fail('VERIFICATION_ALREADY_PENDING'));
 		}
 
 		// Generate new verification token
@@ -181,7 +251,7 @@ router.put('/', validate([
  * POST /settings/email/resend
  * Resend verification email with rate limiting
  */
-router.post('/resend', async (req, res) => {
+router.post('/resend', applyEmailResendLimiter, async (req, res) => {
 	try {
 		const account = await getDb().collection('Accounts').findOne({
 			_id: new ObjectId(req.session.accountId)
@@ -261,3 +331,4 @@ router.post('/resend', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.initializeLimiters = initializeLimiters;

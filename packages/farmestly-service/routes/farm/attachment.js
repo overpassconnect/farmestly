@@ -1,13 +1,18 @@
 const express = require('express');
-const { query } = require('express-validator');
+const { query, body } = require('express-validator');
 const { getDb } = require('../../utils/db');
 const router = express.Router();
 const { ok, fail } = require('../../utils/response');
 const { validate } = require('../../middleware/validation');
 const { ObjectId } = require('mongodb');
 
+const notesValidation = body('notes')
+	.optional({ nullable: true, checkFalsy: true })
+	.isLength({ max: 500 }).withMessage('notes.tooLong')
+	.trim();
+
 // POST /attachment/add - Create a new attachment
-router.post('/add', async (req, res) => {
+router.post('/add', validate([notesValidation]), async (req, res) => {
 	try {
 		const account = await getDb().collection('Accounts').findOne({
 			_id: new ObjectId(req.session.accountId)
@@ -28,7 +33,8 @@ router.post('/add', async (req, res) => {
 			tankCapacity: null,
 			boomWidth: null,
 			defaultCarrierRate: null,
-			litersPerHour: null
+			litersPerHour: null,
+			notes: req.body.notes || null
 		};
 
 		// Handle sprayer configuration
@@ -59,7 +65,7 @@ router.post('/add', async (req, res) => {
 });
 
 // POST /attachment/update - Update an existing attachment
-router.post('/update', async (req, res) => {
+router.post('/update', validate([notesValidation]), async (req, res) => {
 	try {
 		if (!req.body._id || !ObjectId.isValid(req.body._id)) {
 			return res.status(400).json(fail('INVALID_ID'));
@@ -84,11 +90,13 @@ router.post('/update', async (req, res) => {
 			name: req.body.name,
 			make: req.body.make || null,
 			type: req.body.type,
+			powerOnTime: req.body.powerOnTime != null ? Number(req.body.powerOnTime) : 0,
 			usedFor: req.body.usedFor === 'spray' ? 'spray' : null,
 			tankCapacity: req.body.usedFor === 'spray' ? Number(req.body.tankCapacity) : null,
 			boomWidth: req.body.usedFor === 'spray' && req.body.boomWidth != null ? Number(req.body.boomWidth) : null,
 			defaultCarrierRate: req.body.usedFor === 'spray' && req.body.defaultCarrierRate != null ? Number(req.body.defaultCarrierRate) : null,
-			litersPerHour: req.body.usedFor === 'spray' && req.body.litersPerHour != null ? Number(req.body.litersPerHour) : null
+			litersPerHour: req.body.usedFor === 'spray' && req.body.litersPerHour != null ? Number(req.body.litersPerHour) : null,
+			notes: req.body.notes || null
 		};
 
 		const result = await getDb().collection('Attachments').findOneAndUpdate(
