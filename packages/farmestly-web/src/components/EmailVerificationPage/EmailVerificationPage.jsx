@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import * as g from '../../global.module.css';
 import * as styles from './EmailVerificationPage.module.css';
@@ -16,6 +16,7 @@ function EmailVerificationPage() {
 	const [status, setStatus] = useState('loading');
 	const [message, setMessage] = useState('');
 	const [isMobile, setIsMobile] = useState(false);
+	const verificationAttempted = useRef(false);
 
 	useEffect(() => {
 		setIsMobile(isMobileDevice());
@@ -27,6 +28,11 @@ function EmailVerificationPage() {
 			setMessage('Invalid verification link. No token provided.');
 			return;
 		}
+
+		if (verificationAttempted.current) {
+			return;
+		}
+		verificationAttempted.current = true;
 
 		verifyEmail(token);
 	}, [token]);
