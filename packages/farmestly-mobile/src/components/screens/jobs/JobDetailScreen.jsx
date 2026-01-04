@@ -19,6 +19,7 @@ import colors from '../../../globals/colors';
 import config from '../../../globals/config';
 import PrimaryButton from '../../ui/core/PrimaryButton';
 import { FormikHelper, FormInput } from '../../ui/form';
+import JobService from '../../../utils/JobService';
 
 const BASE_URL = config.BASE_URL;
 
@@ -27,7 +28,7 @@ const JobDetailScreen = () => {
 	const navigation = useNavigation();
 	const route = useRoute();
 	const { jobRecord } = route.params || {};
-	const { farmData, setFarmData } = useGlobalContext();
+	const { farmData, setFarmData, isOffline } = useGlobalContext();
 	const { api, showError } = useApi();
 	const { formatRateValue, formatProductRateValue, parseRate, parseProductRate, formatValue, parse, symbol, rateSymbol } = useUnits();
 
@@ -47,6 +48,12 @@ const JobDetailScreen = () => {
 
 	// Check if job is synced (has _id)
 	const isSynced = Boolean(jobRecord?._id);
+
+	// Determine if editing is allowed
+	// - Synced jobs: can edit via API when online
+	// - Non-synced jobs: can always edit locally via JobService
+	const canEdit = !isSynced || !isOffline;
+	const canDelete = isSynced && !isOffline;
 
 	// Get job title
 	const title = jobRecord?.template?.name || t(`common:jobTypes.${jobRecord?.type}`);
@@ -203,20 +210,12 @@ const JobDetailScreen = () => {
 
 	// Handle form submission
 	const handleSubmit = async (values) => {
-		if (!isSynced) {
-			Alert.alert('Cannot Edit', 'This job must sync before it can be edited.');
-			return;
-		}
-
 		setIsSubmitting(true);
 
 		const elapsedTime = calculateDuration(values.startTime, values.endTime);
 
 		// Build update object with only changed fields
-		// Server expects _id field for the job identifier
-		const updateData = {
-			_id: jobRecord._id,
-		};
+		const updateData = {};
 
 		if (values.startTime.getTime() !== new Date(jobRecord.startTime).getTime()) {
 			updateData.startTime = values.startTime.toISOString();
@@ -283,20 +282,38 @@ const JobDetailScreen = () => {
 			}
 		}
 
-		// Only send request if there are changes
-		if (Object.keys(updateData).length === 1) {
+		// Only proceed if there are changes
+		if (Object.keys(updateData).length === 0) {
 			Alert.alert('No Changes', 'No fields were modified.');
 			setIsSubmitting(false);
 			setIsEditing(false);
 			return;
 		}
 
+		// Handle non-synced jobs locally via JobService
+		if (!isSynced) {
+			const localJobId = jobRecord.id;
+			const updatedJob = await JobService.updateJob(localJobId, updateData);
+
+			setIsSubmitting(false);
+
+			if (updatedJob) {
+				setIsEditing(false);
+				Alert.alert('Saved', 'Changes saved locally. They will sync when online.');
+				navigation.goBack();
+			} else {
+				Alert.alert('Error', 'Failed to save changes locally.');
+			}
+			return;
+		}
+
+		// Handle synced jobs via API
 		const result = await api(`${BASE_URL}/job/record/update`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
 			},
-			body: JSON.stringify(updateData)
+			body: JSON.stringify({ _id: jobRecord._id, ...updateData })
 		});
 
 		setIsSubmitting(false);
@@ -308,8 +325,6 @@ const JobDetailScreen = () => {
 			setIsEditing(false);
 			navigation.goBack();
 		} else if (result.validation) {
-			// Show validation errors using the error sheet
-			// Use VALIDATION_FAILED code which should have a generic translation
 			showError('VALIDATION_FAILED');
 		}
 
@@ -318,8 +333,12 @@ const JobDetailScreen = () => {
 
 	// Handle delete
 	const handleDelete = () => {
-		if (!isSynced) {
-			Alert.alert('Cannot Delete', 'This job must sync before it can be deleted.');
+		if (!canDelete) {
+			if (!isSynced) {
+				Alert.alert('Cannot Delete', 'This job must sync before it can be deleted from the server.');
+			} else if (isOffline) {
+				Alert.alert('Cannot Delete', 'You must be online to delete synced jobs.');
+			}
 			return;
 		}
 
@@ -381,7 +400,7 @@ const JobDetailScreen = () => {
 						<Text style={styles.title}>{title}</Text>
 						<Text style={styles.subtitle}>{getFieldName()}</Text>
 					</View>
-					{isSynced && !isEditing && (
+					{canEdit && !isEditing && (
 						<PrimaryButton
 							text="Edit"
 							onPress={() => setIsEditing(true)}
@@ -390,11 +409,18 @@ const JobDetailScreen = () => {
 					)}
 				</View>
 
-				{/* Unsynced banner */}
+				{/* Status banners */}
 				{!isSynced && (
+					<View style={styles.infoBanner}>
+						<Text style={styles.infoText}>
+							This job hasn't synced yet. Changes will be saved locally.
+						</Text>
+					</View>
+				)}
+				{isSynced && isOffline && (
 					<View style={styles.warningBanner}>
 						<Text style={styles.warningText}>
-							This job hasn't synced yet. Editing is disabled until sync completes.
+							You're offline. Editing synced jobs requires an internet connection.
 						</Text>
 					</View>
 				)}
@@ -742,7 +768,7 @@ const JobDetailScreen = () => {
 							)}
 
 							{/* Delete Section */}
-							{isSynced && !isEditing && (
+							{canDelete && !isEditing && (
 								<View style={styles.deleteSection}>
 									<Text style={styles.deleteSectionHeader}>Delete Job</Text>
 									<Text style={styles.deleteSectionDescription}>
@@ -841,6 +867,18 @@ const styles = StyleSheet.create({
 		fontFamily: 'Geologica-Medium',
 		fontSize: 15,
 		color: 'white',
+	},
+	infoBanner: {
+		backgroundColor: '#D1ECF1',
+		padding: 12,
+		marginBottom: 20,
+		borderRadius: 8,
+	},
+	infoText: {
+		fontFamily: 'Geologica-Regular',
+		fontSize: 13,
+		color: '#0C5460',
+		lineHeight: 18,
 	},
 	warningBanner: {
 		backgroundColor: '#FFF3CD',

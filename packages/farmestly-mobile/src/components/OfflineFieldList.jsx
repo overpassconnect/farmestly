@@ -4,7 +4,7 @@ import colors from '../globals/colors';
 
 const OfflineFieldList = ({ fields, selectedFieldId, onFieldSelect }) => {
 	const renderField = ({ item }) => {
-		const isSelected = item.id === selectedFieldId;
+		const isSelected = item._id === selectedFieldId;
 		const cultivation = item.currentCultivation;
 		const cropName = cultivation?.crop || 'No crop';
 		const variety = cultivation?.variety;

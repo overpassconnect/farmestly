@@ -27,7 +27,6 @@ const UnitsContext = createContext(null);
 
 export const UnitsProvider = ({ children, preferences = {}, onPreferenceChange }) => {
 	const prefs = { ...DEFAULTS, ...preferences };
-	console.log('[UnitsProvider] preferences:', preferences, typeof preferences);
 
 	// Get mathjs unit string for a category
 	const getUnit = useCallback((category) => {

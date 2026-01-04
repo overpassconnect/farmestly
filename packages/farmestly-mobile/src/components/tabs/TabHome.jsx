@@ -36,7 +36,7 @@ const FIELD_GROUPS_STORAGE_KEY = '@FieldGroups';
 const SELECTED_GROUP_KEY = '@SelectedFieldGroup';
 
 const TabHome = () => {
-	const { farmData, setFarmData, activeRecordings, isOffline, loadFromServer } = useGlobalContext();
+	const { farmData, setFarmData, activeRecordings, isOffline } = useGlobalContext();
 	const navigation = useNavigation();
 	const route = useRoute();
 	const insets = useSafeAreaInsets();
@@ -270,7 +270,7 @@ const TabHome = () => {
 					stopPromise.then(finished => {
 						if (finished) {
 							navigation.navigate('JobSummaryScreen', { completedRecording: finished });
-							loadFromServer();
+							// No need to loadFromServer() - UPDATES mechanism handles state sync
 						}
 					}).catch(error => {
 						console.error('[TabHome] Error stopping recording:', error);
@@ -287,7 +287,7 @@ const TabHome = () => {
 			/>,
 			{ snapPoints: ['60%'], enablePanDownToClose: false }
 		);
-	}, [openBottomSheet, closeBottomSheet, navigation, loadFromServer]);
+	}, [openBottomSheet, closeBottomSheet, navigation]);
 
 	const openRecordingSheet = useCallback((fieldId, onOpened = null) => {
 		openBottomSheet(
@@ -509,8 +509,8 @@ const TabHome = () => {
 		<View style={styles.container}>
 			<SlidingHeader
 				ref={headerRef}
-				title={farmData.name || farmData.farmData?.farmName || farmData.farmName}
-				farmName={farmData.name || farmData.farmData?.farmName || farmData.farmName}
+				title={farmData?.name || farmData?.farmData?.farmName || farmData?.farmName || ''}
+				farmName={farmData?.name || farmData?.farmData?.farmName || farmData?.farmName || ''}
 				views={views}
 				fields={visibleFields}
 				onViewChange={handleViewChange}

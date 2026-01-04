@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, forwardRef, useImperativeHandle, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
 import {
 	StyleSheet,
 	View,
@@ -30,6 +30,8 @@ import { useTranslation } from 'react-i18next';
 import ComplianceBadge from '../ui/core/ComplianceBadge';
 import PrimaryButton from '../ui/core/PrimaryButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BBCH_WHEEL_DATA } from '../../globals/constants/bbch';
+import api from '../../globals/api';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MARGIN = 16;
@@ -37,27 +39,8 @@ const COMPONENT_WIDTH = SCREEN_WIDTH - (MARGIN * 2);
 const COLLAPSED_HEIGHT = 84; // bottomHeader height without border
 const TOP_HEADER_HEIGHT = 50;
 const TOP_HEADER_MARGIN = 8;
-const TAB_BAR_HEIGHT = 110;
+const TAB_BAR_HEIGHT = 0;
 
-// BBCH stages in increments of 5 (0, 5, 10, 15... 95)
-const BBCH_DATA = Array.from({ length: 20 }, (_, i) => ({
-	value: i * 5,
-	label: (i * 5).toString().padStart(2, '0'),
-}));
-
-// Get BBCH stage description
-const getBBCHDescription = (stage) => {
-	if (stage < 10) return 'Germination / Sprouting';
-	if (stage < 20) return 'Leaf development';
-	if (stage < 30) return 'Formation of side shoots';
-	if (stage < 40) return 'Stem elongation';
-	if (stage < 50) return 'Vegetative propagation';
-	if (stage < 60) return 'Inflorescence emergence';
-	if (stage < 70) return 'Flowering';
-	if (stage < 80) return 'Development of fruit';
-	if (stage < 90) return 'Ripening of fruit';
-	return 'Senescence';
-};
 
 // Helper to format date
 const formatDate = (dateString) => {
@@ -66,17 +49,17 @@ const formatDate = (dateString) => {
 	return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
-// Animation timing config - gentle, non-jarring expansion
+// Animation timing config - snappy expansion with playful bounce
 const SPRING_CONFIG = {
-	damping: 28,
-	stiffness: 70,
-	mass: 0.5,
+	damping: 18,
+	stiffness: 180,
+	mass: 0.6,
 };
 
-// Timing config for collapse and subtle elements
+// Timing config for collapse - quick and smooth
 const TIMING_CONFIG = {
-	duration: 450,
-	easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+	duration: 280,
+	easing: Easing.bezier(0.4, 0.0, 0.2, 1),
 };
 
 const OfflineIndicator = () => {
@@ -89,6 +72,35 @@ const OfflineIndicator = () => {
 				<Text style={styles.offlineIndicatorText}>{t('common:general.offlineMode')}</Text>
 			</View>
 		</View>
+	);
+};
+
+// Animated text that fades in/out when text changes
+const FadingText = ({ text, style, numberOfLines }) => {
+	const opacity = useSharedValue(1);
+	const [displayText, setDisplayText] = useState(text);
+
+	useEffect(() => {
+		if (text !== displayText) {
+			// Fade out
+			opacity.value = withTiming(0, { duration: 100 }, (finished) => {
+				if (finished) {
+					// Update text and fade in
+					runOnJS(setDisplayText)(text);
+					opacity.value = withTiming(1, { duration: 150 });
+				}
+			});
+		}
+	}, [text]);
+
+	const animatedStyle = useAnimatedStyle(() => ({
+		opacity: opacity.value,
+	}));
+
+	return (
+		<Animated.Text style={[style, animatedStyle]} numberOfLines={numberOfLines}>
+			{displayText}
+		</Animated.Text>
 	);
 };
 
@@ -128,6 +140,8 @@ const SlidingHeader = forwardRef(({
 	const [bbchStages, setBbchStages] = useState({}); // fieldId -> bbchStage
 	const [fieldGroups, setFieldGroups] = useState([]); // All field groups for wheel picker
 	const [selectedGroupIndex, setSelectedGroupIndex] = useState(0); // Currently selected group index
+	const bbchDebounceRef = useRef({}); // Debounce timeouts for BBCH API calls
+	const pendingBbchRef = useRef({}); // Track pending values
 
 	// Calculate expanded height - stop at top of tab bar
 	const EXPANDED_HEIGHT = SCREEN_HEIGHT - MARGIN - insets.top - TOP_HEADER_HEIGHT - TOP_HEADER_MARGIN - TAB_BAR_HEIGHT - insets.bottom;
@@ -216,6 +230,11 @@ const SlidingHeader = forwardRef(({
 		return onComplianceChange(loadBadgeDataForFields);
 	}, [fields]);
 
+	// Flush pending BBCH saves on unmount
+	useEffect(() => {
+		return () => flushPendingBbch();
+	}, [flushPendingBbch]);
+
 	const animateToIndex = useCallback((newIndex, velocity = 0) => {
 		'worklet';
 		const finalPosition = -newIndex * COMPONENT_WIDTH;
@@ -275,20 +294,55 @@ const SlidingHeader = forwardRef(({
 		}
 	}, [isExpanded]);
 
+	// Flush pending BBCH saves immediately
+	const flushPendingBbch = useCallback(() => {
+		Object.entries(pendingBbchRef.current).forEach(([fieldId, { cultivationId, stage }]) => {
+			clearTimeout(bbchDebounceRef.current[fieldId]);
+			api('/cultivation/bbch', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ cultivationId, stage })
+			}).catch(err => console.error('[BBCH] Flush failed:', err));
+		});
+		pendingBbchRef.current = {};
+	}, []);
+
 	// Collapse handler (for drag handle and other triggers)
 	const handleCollapse = useCallback(() => {
 		if (isExpanded) {
+			flushPendingBbch();
 			expandProgress.value = withTiming(0, TIMING_CONFIG);
 			setIsExpanded(false);
 		}
-	}, [isExpanded]);
+	}, [isExpanded, flushPendingBbch]);
 
-	// Handle BBCH change - store locally and send to server
-	const handleBBCHChange = useCallback((fieldId, stage) => {
+	// Handle BBCH change - store locally and debounce API call
+	const handleBBCHChange = useCallback((fieldId, stage, cultivationId) => {
+		// Update UI immediately
 		setBbchStages(prev => ({ ...prev, [fieldId]: stage }));
-		console.log('[SlidingHeader] BBCH stage changed:', fieldId, stage);
-		// TODO: Send to server when backend is ready
-		// api.post('/cultivation/bbch', { fieldId, stage });
+
+		// Store pending value
+		pendingBbchRef.current[fieldId] = { cultivationId, stage };
+
+		// Clear previous timeout for this field
+		if (bbchDebounceRef.current[fieldId]) {
+			clearTimeout(bbchDebounceRef.current[fieldId]);
+		}
+
+		// Debounce API call - 800ms after user stops scrolling
+		bbchDebounceRef.current[fieldId] = setTimeout(() => {
+			api('/cultivation/bbch', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ cultivationId, stage })
+			})
+				.then(() => {
+					delete pendingBbchRef.current[fieldId];
+				})
+				.catch(err => {
+					console.error('[BBCH] Save failed:', err);
+				});
+		}, 800);
 	}, []);
 
 	// Get BBCH stage for a field (local state or from cultivation)
@@ -386,22 +440,30 @@ const SlidingHeader = forwardRef(({
 		};
 	});
 
-	// Expanded content fades in gently
+	// Expanded content fades in with scale and slide
 	const expandedContentAnimatedStyle = useAnimatedStyle(() => {
-		// Smooth fade starting earlier
-		const opacity = interpolate(expandProgress.value, [0.1, 0.4], [0, 1], 'clamp');
+		// Quick fade in
+		const opacity = interpolate(expandProgress.value, [0.15, 0.5], [0, 1], 'clamp');
 
-		// Minimal slide - just 12px
+		// Slide up from below
 		const translateY = interpolate(
 			expandProgress.value,
 			[0, 1],
-			[12, 0],
+			[20, 0],
+			'clamp'
+		);
+
+		// Subtle scale for a pop-in effect
+		const scale = interpolate(
+			expandProgress.value,
+			[0, 0.6, 1],
+			[0.92, 1.02, 1],
 			'clamp'
 		);
 
 		return {
 			opacity,
-			transform: [{ translateY }],
+			transform: [{ translateY }, { scale }],
 		};
 	});
 
@@ -583,31 +645,18 @@ const SlidingHeader = forwardRef(({
 							style={styles.gradientBackground}
 						/>
 
-						{/* Edit button - top right */}
-						<TouchableOpacity
-							style={styles.editButton}
-							onPress={() => {
-								if (onEditField) {
-									handleCollapse();
-									setTimeout(() => onEditField(field._id), 200);
-								}
-							}}
-						>
-							<Text style={styles.editButtonText}>✏️</Text>
-						</TouchableOpacity>
-
 						{cultivation ? (
 							<View style={styles.expandedContent}>
 								{/* Crop name - clean typography */}
 								<Text style={styles.cropName}>{cultivation.crop}</Text>
 								{cultivation.variety && (
-									<Text style={styles.varietyName}>{cultivation.variety}</Text>
+									<Text style={styles.varietyName}>{cultivation.variety} • {cultivation.eppoCode}</Text>
 								)}
 								{(cultivation.eppoCode || cultivation.preferredName) && (
 									<View style={styles.eppoRow}>
-										{cultivation.eppoCode && (
+										{/* {cultivation.eppoCode && (
 											<Text style={styles.eppoCode}>{cultivation.eppoCode}</Text>
-										)}
+										)} */}
 										{cultivation.preferredName && (
 											<Text style={styles.preferredName}>{cultivation.preferredName}</Text>
 										)}
@@ -616,12 +665,12 @@ const SlidingHeader = forwardRef(({
 
 								{/* BBCH Section - minimal */}
 								<View style={styles.bbchSection}>
-									<Text style={styles.bbchLabel}>BBCH</Text>
+									{/* <Text style={styles.bbchLabel}>BBCH Growth Stage</Text> */}
 									<View style={styles.wheelPickerWrapper}>
 										<WheelPicker
-											data={BBCH_DATA}
+											data={BBCH_WHEEL_DATA}
 											value={getBBCHStage(field._id, cultivation)}
-											onValueChanged={({ item }) => handleBBCHChange(field._id, item.value)}
+											onValueChanged={({ item }) => handleBBCHChange(field._id, item.value, cultivation.id)}
 											itemHeight={48}
 											width={90}
 											visibleItemCount={3}
@@ -629,14 +678,22 @@ const SlidingHeader = forwardRef(({
 											itemTextStyle={styles.wheelItemText}
 										/>
 									</View>
-									<Text style={styles.bbchDescription}>
-										{getBBCHDescription(getBBCHStage(field._id, cultivation))}
-									</Text>
+									<View style={styles.bbchDescriptionContainer}>
+										<FadingText
+											style={styles.bbchDescription}
+											numberOfLines={2}
+											text={t(`common:bbch.codes.${getBBCHStage(field._id, cultivation).toString().padStart(2, '0')}`)}
+										/>
+									</View>
 								</View>
 
 								{/* Start date badge - bottom */}
 								{cultivation.startTime && (
 									<View style={styles.startBadge}>
+										<Image
+											source={require('../../assets/icons/plant.png')}
+											style={styles.startBadgeIcon}
+										/>
 										<Text style={styles.startBadgeText}>Started {formatDate(cultivation.startTime)}</Text>
 									</View>
 								)}
@@ -647,6 +704,22 @@ const SlidingHeader = forwardRef(({
 								<Text style={styles.noCultivation}>{t('common:field.noCultivation', 'No active cultivation')}</Text>
 							</View>
 						)}
+
+						{/* Edit Field Section */}
+						<View style={styles.editFieldSection}>
+
+							<PrimaryButton
+								text={t('common:buttons.editField', 'Edit Field')}
+								variant="primaryOutline"
+								onPress={() => {
+									if (onEditField) {
+										handleCollapse();
+										setTimeout(() => onEditField(field._id), 200);
+									}
+								}}
+								style={styles.editFieldButton}
+							/>
+						</View>
 					</Animated.View>
 				)}
 			</View>
@@ -1122,20 +1195,24 @@ const styles = StyleSheet.create({
 		left: 0,
 		right: 0,
 	},
-	editButton: {
-		position: 'absolute',
-		top: 8,
-		right: 12,
-		width: 36,
-		height: 36,
-		borderRadius: 18,
-		backgroundColor: colors.SECONDARY_LIGHT,
+	editFieldSection: {
+		borderTopWidth: 1,
+		borderTopColor: colors.PRIMARY + '15',
+		paddingTop: 12,
+		paddingBottom: 16,
+		paddingHorizontal: 24,
 		alignItems: 'center',
-		justifyContent: 'center',
-		zIndex: 10,
 	},
-	editButtonText: {
-		fontSize: 16,
+	editFieldDescription: {
+		fontFamily: 'Geologica-Regular',
+		fontSize: 13,
+		color: colors.PRIMARY_LIGHT,
+		textAlign: 'center',
+		marginBottom: 12,
+	},
+	editFieldButton: {
+		minWidth: 140,
+		height: 42,
 	},
 	expandedContent: {
 		flex: 1,
@@ -1165,8 +1242,8 @@ const styles = StyleSheet.create({
 	eppoCode: {
 		fontFamily: 'Geologica-Medium',
 		fontSize: 12,
-		color: 'white',
-		backgroundColor: colors.SECONDARY,
+		// color: 'white',
+		color: colors.SECONDARY,
 		paddingHorizontal: 10,
 		paddingVertical: 3,
 		borderRadius: 10,
@@ -1182,14 +1259,14 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		flex: 1,
 		justifyContent: 'center',
-		marginTop: 8,
+		// marginTop: 8,
 	},
 	bbchLabel: {
 		fontFamily: 'Geologica-Medium',
 		fontSize: 12,
 		color: colors.PRIMARY_LIGHT,
 		letterSpacing: 1.5,
-		textTransform: 'uppercase',
+		// textTransform: 'uppercase',
 	},
 	wheelPickerWrapper: {
 		height: 144,
@@ -1204,24 +1281,33 @@ const styles = StyleSheet.create({
 		fontSize: 32,
 		color: colors.PRIMARY,
 	},
+	bbchDescriptionContainer: {
+		height: 44, // Fixed height for 2 lines (15px font * 1.4 line height * 2 lines + padding)
+		justifyContent: 'center',
+		alignItems: 'center',
+		paddingHorizontal: 16,
+	},
 	bbchDescription: {
 		fontFamily: 'Geologica-Regular',
-		fontSize: 15,
+		fontSize: 16,
 		color: colors.PRIMARY_LIGHT,
 		textAlign: 'center',
+		lineHeight: 20,
 	},
 	startBadge: {
-		borderWidth: 1,
-		borderColor: colors.SUCCESS + '40',
-		backgroundColor: colors.SUCCESS + '10',
-		paddingHorizontal: 14,
-		paddingVertical: 6,
-		borderRadius: 16,
+		flexDirection: 'row',
+		alignItems: 'center',
 		marginBottom: 12,
+		gap: 6,
+	},
+	startBadgeIcon: {
+		width: 19,
+		height: 19,
+		tintColor: colors.SUCCESS,
 	},
 	startBadgeText: {
 		fontFamily: 'Geologica-Medium',
-		fontSize: 13,
+		fontSize: 17,
 		color: colors.SUCCESS,
 	},
 	noCultivationContainer: {

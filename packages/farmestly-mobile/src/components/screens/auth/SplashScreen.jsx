@@ -12,19 +12,23 @@ const SplashScreen = ({ navigation }) => {
 
 	const init = async () => {
 		try {
+			console.log('[SplashScreen] Starting init...');
 			const data = await loadData();
+			console.log('[SplashScreen] loadData returned:', data ? 'data' : 'null', 'account:', !!data?.account);
 
-			if (!data) {
-				// No session, no cache
+			if (!data?.account) {
+				console.log('[SplashScreen] No data/account, going to Entry');
 				navigation.replace('Entry');
 				return;
 			}
 
 			if (!data.account.setupCompleted) {
+				console.log('[SplashScreen] Setup not completed, going to Setup');
 				navigation.replace('Setup');
 				return;
 			}
 
+			console.log('[SplashScreen] All good, going to Main');
 			navigation.replace('Main');
 		} catch (err) {
 			console.error('[SplashScreen] init error:', err);

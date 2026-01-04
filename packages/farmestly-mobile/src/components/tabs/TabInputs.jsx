@@ -14,6 +14,9 @@ const TabInputs = () => {
 	const { farmData } = useGlobalContext();
 	const navigation = useNavigation();
 
+	// Guard against missing farmData (e.g., offline with no cache)
+	const products = farmData?.products || [];
+
 	// Helper function to get product type display name using i18n
 	const getProductTypeDisplay = (type) => {
 		const map = {
@@ -30,7 +33,7 @@ const TabInputs = () => {
 	// Products tab content
 	const ProductsTab = (
 		<View style={styles.tabContainer}>
-			{!farmData.products || farmData.products.length === 0 ? (
+			{products.length === 0 ? (
 				<View style={styles.emptyTextContainer}>
 					<Image
 						source={require('../../assets/icons/inputs_brown.png')}
@@ -46,7 +49,7 @@ const TabInputs = () => {
 					contentContainerStyle={styles.scrollContent}
 					showsVerticalScrollIndicator={true}
 				>
-					{farmData.products.map((product) => {
+					{products.map((product) => {
 						return (
 							<TouchableOpacity
 								key={'product-' + product.id}

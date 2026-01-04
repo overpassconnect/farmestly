@@ -23,6 +23,7 @@ const PrimaryButton = ({
 			style={[
 				styles.button,
 				variant === 'outline' && styles.buttonOutline,
+				variant === 'primaryOutline' && styles.buttonPrimaryOutline,
 				variant === 'ghost' && styles.buttonGhost,
 				variant === 'red' && styles.buttonRed,
 				variant === 'redOutline' && styles.buttonRedOutline,
@@ -37,7 +38,7 @@ const PrimaryButton = ({
 		>
 			{loading ? (
 				<ActivityIndicator
-					color={variant === 'outline' ? colors.SECONDARY : variant === 'ghost' ? colors.PRIMARY : '#fff'}
+					color={variant === 'outline' ? colors.SECONDARY : variant === 'primaryOutline' ? colors.PRIMARY : variant === 'ghost' ? colors.PRIMARY : '#fff'}
 				/>
 			) : (
 				<View style={styles.contentContainer}>
@@ -45,6 +46,7 @@ const PrimaryButton = ({
 					<Text style={[
 						styles.text,
 						variant === 'outline' && styles.textOutline,
+						variant === 'primaryOutline' && styles.textPrimaryOutline,
 						variant === 'ghost' && styles.textGhost,
 						variant === 'red' && styles.textRed,
 						variant === 'redOutline' && styles.textRedOutline,
@@ -83,6 +85,11 @@ const styles = StyleSheet.create({
 		borderWidth: 2,
 		borderColor: colors.SECONDARY,
 	},
+	buttonPrimaryOutline: {
+		backgroundColor: 'transparent',
+		borderWidth: 1.5,
+		borderColor: colors.PRIMARY,
+	},
 	buttonGhost: {
 		backgroundColor: 'transparent',
 		borderWidth: 0,
@@ -117,6 +124,9 @@ const styles = StyleSheet.create({
 	},
 	textOutline: {
 		color: colors.SECONDARY,
+	},
+	textPrimaryOutline: {
+		color: colors.PRIMARY,
 	},
 	textGhost: {
 		color: colors.PRIMARY,

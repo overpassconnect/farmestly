@@ -1267,13 +1267,6 @@ const styles = StyleSheet.create({
 		flexGrow: 1,
 		backgroundColor: 'white',
 	},
-	wizardPageContainer: {
-		width: width,
-		// padding: 34,
-		paddingBottom: 0,
-		flex: 1,
-		backgroundColor: 'white'
-	},
 	titleContainer: {
 		marginBottom: 10
 	},

@@ -62,6 +62,7 @@ const SowJobScreen = () => {
 					data: {
 						sow: {
 							eppoCode: values.eppoCode || null,
+							preferredName: values.preferredName || null,
 							lotNumber: values.lotNumber.trim() || null,
 							seedManufacturer: values.seedManufacturer || null
 						}
@@ -86,7 +87,7 @@ const SowJobScreen = () => {
 			<Text style={styles.fieldName}>{field.name}</Text>
 
 			<FormikHelper
-				initialValues={{ crop: '', variety: '', eppoCode: null, lotNumber: '', seedManufacturer: null }}
+				initialValues={{ crop: '', variety: '', eppoCode: null, preferredName: null, lotNumber: '', seedManufacturer: null }}
 				validationSchema={sowJobSchema}
 				onSubmit={handleSubmit}
 			>
@@ -129,10 +130,11 @@ const SowJobScreen = () => {
 											cropValue={values.crop}
 											eppoValue={values.eppoCode}
 											onSuggestionChange={(suggestion) => {
-												// Auto-fill the EPPO code input when suggestion changes
+												// Auto-fill the EPPO code and preferredName when suggestion changes
 												if (suggestion?.eppocode) {
 													setFieldValue('eppoCode', suggestion.eppocode);
 												}
+												setFieldValue('preferredName', suggestion?.preferred || null);
 											}}
 										/>
 									) : !isOffline ? (

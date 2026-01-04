@@ -152,7 +152,7 @@ const SettingsScreen = () => {
 	const { unit: getCurrentUnit, setUnit, getAvailableUnits } = useUnits();
 
 	const navigation = useNavigation();
-	const { account, localPreferences, setLocalPreference, refresh } = useGlobalContext();
+	const { account, localPreferences, setLocalPreference, refresh, clearCache } = useGlobalContext();
 
 	// Refresh account data when screen is focused (e.g., after email verification)
 	useFocusEffect(
@@ -432,6 +432,7 @@ const SettingsScreen = () => {
 		if (result.ok || result.code === 'SIGNED_OUT') {
 			await JobService.reset();
 			await clearCookie();
+			await clearCache();
 			navigation.replace('Entry');
 		}
 	};

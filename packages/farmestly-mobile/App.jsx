@@ -17,7 +17,7 @@ import './src/globals/i18n';
 // Import screens
 import { SplashScreen, EntryScreen, SignUpScreen } from './src/components/screens/auth';
 import { FirstSetupScreen, SettingsScreen, EmailSettingsScreen } from './src/components/screens/settings';
-import { SowJobScreen, HarvestJobScreen, CustomJobScreen, SprayJobScreen, IrrigationJobScreen, JobSummaryScreen, EditJobScreen, JobDetailScreen } from './src/components/screens/jobs';
+import { SowJobScreen, HarvestJobScreen, CustomJobScreen, SprayJobScreen, IrrigationJobScreen, JobSummaryScreen, JobDetailScreen } from './src/components/screens/jobs';
 import { FieldGroupsScreen, EditFieldGroupScreen, FieldRedrawScreen, CultivationScreen, FiltersScreen } from './src/components/screens/fields';
 import { CreateReportScreen } from './src/components/screens/reports';
 import { EditEntityScreen } from './src/components/screens/entities';
@@ -172,7 +172,6 @@ const App = () => {
 											<Stack.Screen name="FieldRedrawScreen" component={FieldRedrawScreen} />
 											<Stack.Screen name="EditEntityScreen" component={EditEntityScreen} />
 											<Stack.Screen name="CreateReportScreen" component={CreateReportScreen} />
-											<Stack.Screen name="EditJobScreen" component={EditJobScreen} />
 											<Stack.Screen name="JobDetailScreen" component={JobDetailScreen} />
 											<Stack.Screen name="CultivationScreen" component={CultivationScreen} />
 											<Stack.Screen name="EmailSettingsScreen" component={EmailSettingsScreen} />

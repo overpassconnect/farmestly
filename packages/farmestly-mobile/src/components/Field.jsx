@@ -258,8 +258,13 @@ const Field = () => {
 	};
 
 	return (
-		<View style={styles.wizardPageContainer}>
-			<ScrollView bounces={false} bouncesZoom={false}>
+		<View style={styles.container}>
+			<ScrollView
+				bounces={false}
+				bouncesZoom={false}
+				contentContainerStyle={styles.scrollContent}
+				showsVerticalScrollIndicator={false}
+			>
 				<View style={styles.titleContainer}>
 					{forFirstSetup ? (
 						<Text style={styles.titleText}>{t('screens:field.newFieldTitle')}</Text>
@@ -273,14 +278,17 @@ const Field = () => {
 				</Text>
 
 				{!forFirstSetup && (
-					<TouchableOpacity onPress={handleRedrawField}>
-						<ListItem
-							icon={require('../assets/icons/field.png')}
-							title={t('screens:field.redrawFieldShape')}
-							subTitle1={t('screens:field.editGeometry')}
-							showChevron={true}
+					<View style={styles.redrawSection}>
+						<Text style={styles.redrawSectionTitle}>{t('screens:field.redrawFieldShape')}</Text>
+						<Text style={styles.redrawSectionDescription}>
+							{t('screens:field.redrawDescription', 'Adjust the field boundaries by redrawing the shape on the map.')}
+						</Text>
+						<PrimaryButton
+							text={t('screens:field.redrawButton', 'Redraw Field')}
+							variant="primaryOutline"
+							onPress={handleRedrawField}
 						/>
-					</TouchableOpacity>
+					</View>
 				)}
 
 				<FormikHelper
@@ -359,9 +367,13 @@ const Field = () => {
 };
 
 const styles = StyleSheet.create({
-	wizardPageContainer: {
+	container: {
+		flex: 1,
 		width: width,
-		padding: 34
+	},
+	scrollContent: {
+		padding: 34,
+		paddingBottom: 50,
 	},
 	titleContainer: {
 		marginBottom: 10,
@@ -381,6 +393,25 @@ const styles = StyleSheet.create({
 	},
 	monospaced: {
 		fontFamily: 'RobotoMono-Regular'
+	},
+	redrawSection: {
+		marginBottom: 24,
+		paddingBottom: 24,
+		borderBottomWidth: 1,
+		borderBottomColor: colors.PRIMARY + '15',
+	},
+	redrawSectionTitle: {
+		fontFamily: 'Geologica-Bold',
+		fontSize: 18,
+		color: colors.PRIMARY,
+		marginBottom: 8,
+	},
+	redrawSectionDescription: {
+		fontFamily: 'Geologica-Regular',
+		fontSize: 14,
+		color: colors.PRIMARY_LIGHT,
+		marginBottom: 16,
+		lineHeight: 20,
 	},
 });
 
