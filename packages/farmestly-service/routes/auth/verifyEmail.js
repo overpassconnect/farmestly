@@ -340,6 +340,14 @@ router.get('/', async (req, res) => {
 			'metadata.emailVerified': true
 		};
 
+		// Track when verified email changes (for 6-month cooldown enforcement)
+		// Only set if this is a change from a previously verified email
+		const previousEmail = account.metadata.email;
+		const wasVerified = account.metadata.emailVerified === true;
+		if (wasVerified && previousEmail && previousEmail !== verification.pendingEmail) {
+			updateObj['metadata.lastEmailChangeAt'] = new Date();
+		}
+
 		await getDb().collection('Accounts').updateOne(
 			{ _id: account._id },
 			{

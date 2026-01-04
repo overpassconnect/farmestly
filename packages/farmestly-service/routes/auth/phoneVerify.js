@@ -8,6 +8,7 @@ const router = express.Router();
 const { getDb } = require('../../utils/db');
 const { ok, fail } = require('../../utils/response');
 const G_DB_FIRST_STATE = require('../../db_first_state.json');
+const { createPhoneVerifyRequestLimiter, createPhoneVerifyAttemptLimiter } = require('../../middleware/rateLimiter');
 
 TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -21,6 +22,43 @@ const NO_PASSWORD = "NO_PASSWORD";
 
 // Test phones that bypass Twilio
 const TEST_PHONES = process.env.TEST_PHONES ? process.env.TEST_PHONES.split(',') : [];
+
+// Rate limiters (initialized after Redis is ready)
+let phoneVerifyRequestLimiter = null;
+let phoneVerifyAttemptLimiter = null;
+
+/**
+ * Initialize rate limiters - call after Redis is connected
+ */
+function initializeLimiters() {
+	try {
+		phoneVerifyRequestLimiter = createPhoneVerifyRequestLimiter();
+		phoneVerifyAttemptLimiter = createPhoneVerifyAttemptLimiter();
+		console.log('[PhoneVerify] Rate limiters initialized');
+	} catch (err) {
+		console.warn('[PhoneVerify] Rate limiters not initialized (Redis not ready):', err.message);
+	}
+}
+
+/**
+ * Middleware to apply request rate limiter if initialized
+ */
+function applyRequestLimiter(req, res, next) {
+	if (phoneVerifyRequestLimiter) {
+		return phoneVerifyRequestLimiter(req, res, next);
+	}
+	next();
+}
+
+/**
+ * Middleware to apply attempt rate limiter if initialized
+ */
+function applyAttemptLimiter(req, res, next) {
+	if (phoneVerifyAttemptLimiter) {
+		return phoneVerifyAttemptLimiter(req, res, next);
+	}
+	next();
+}
 
 const getOptions = (action) => {
 	let twilioUrlAction = "Verifications";
@@ -81,7 +119,19 @@ const doRegister = (req, res, body, queries) => {
 	}
 };
 
-router.post('/', (req, res) => {
+/**
+ * Middleware to select appropriate rate limiter based on action
+ */
+function selectRateLimiter(req, res, next) {
+	if (req.query.action === 'request') {
+		return applyRequestLimiter(req, res, next);
+	} else if (req.query.action === 'verify') {
+		return applyAttemptLimiter(req, res, next);
+	}
+	next();
+}
+
+router.post('/', selectRateLimiter, (req, res) => {
 	if (!phone(req.body.phoneNumber, { country: req.body.countryCode }).isValid) {
 		return res.json(fail('INVALID_PHONE_FORMAT'));
 	}
@@ -168,3 +218,4 @@ router.post('/', (req, res) => {
 });
 
 module.exports = router;
+module.exports.initializeLimiters = initializeLimiters;

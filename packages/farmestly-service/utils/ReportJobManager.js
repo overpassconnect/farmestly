@@ -8,6 +8,7 @@ const { getStorage } = require('./ReportStorage');
 const PuppeteerService = require('./PuppeteerService');
 const EmailQueue = require('./EmailQueue');
 const { generateReportHtml } = require('./ReportTemplates');
+const { getAccountLocale } = require('./locale');
 
 // Collection name for job records
 const COLLECTION_NAME = 'reportJobs';
@@ -71,11 +72,58 @@ class ReportJobManager {
 	}
 
 	/**
+	 * Delete any existing report files for the account.
+	 * Called when a new report is requested to avoid stale files.
+	 */
+	async deleteExistingReportFiles(accountId) {
+		const storage = getStorage();
+
+		// Find all completed jobs with download keys for this account
+		const existingJobs = await this._col()
+			.find({
+				accountId: new ObjectId(accountId),
+				status: JobStatus.COMPLETED,
+				'result.downloadKey': { $exists: true }
+			})
+			.toArray();
+
+		// Delete associated files
+		for (const job of existingJobs) {
+			if (job.result.downloadKey) {
+				try {
+					await storage.delete(job.result.downloadKey);
+					// Also delete meta file
+					await storage.delete(job.result.downloadKey + '.meta.json');
+				} catch (err) {
+					console.warn('[ReportJobManager] Failed to delete old file:', job.result.downloadKey, err.message);
+				}
+			}
+		}
+
+		// Clear download keys from job records
+		if (existingJobs.length > 0) {
+			await this._col().updateMany(
+				{
+					accountId: new ObjectId(accountId),
+					'result.downloadKey': { $exists: true }
+				},
+				{
+					$unset: { 'result.downloadKey': '', 'result.downloadUrl': '' },
+					$set: { updatedAt: new Date() }
+				}
+			);
+		}
+
+		return existingJobs.length;
+	}
+
+	/**
 	 * Create a new report generation job.
-	 * Cancels any existing pending jobs for the account first.
+	 * Cancels any existing pending jobs and deletes old report files for the account first.
 	 */
 	async createJob(accountId, params) {
 		await this.cancelPendingJobs(accountId);
+		await this.deleteExistingReportFiles(accountId);
 
 		const jobId = uuidv4();
 		const job = {
@@ -184,7 +232,7 @@ class ReportJobManager {
 
 				if (startDate) {
 					const endDate = job.endDate ? new Date(job.endDate) : now;
-					query.startTime = { $gte: startDate, $lte: endDate };
+					query.startedAt = { $gte: startDate, $lte: endDate };
 				}
 			}
 
@@ -208,7 +256,7 @@ class ReportJobManager {
 			const jobRecords = await getDb()
 				.collection('jobs')
 				.find(query)
-				.sort({ startTime: -1 })
+				.sort({ startedAt: -1 })
 				.limit(MAX_RECORDS_TOTAL)
 				.toArray();
 
@@ -218,28 +266,43 @@ class ReportJobManager {
 				return;
 			}
 
-			// Build lookup maps from farm data
-			const farmData = account.content.farmData || {};
+			// Build lookup maps from separate collections
+			const [fields, machines, attachments, tools, products] = await Promise.all([
+				getDb().collection('Fields').find({ accountId: account._id }).toArray(),
+				getDb().collection('Machines').find({ accountId: account._id }).toArray(),
+				getDb().collection('Attachments').find({ accountId: account._id }).toArray(),
+				getDb().collection('Tools').find({ accountId: account._id }).toArray(),
+				getDb().collection('Products').find({ accountId: account._id }).toArray()
+			]);
+
 			const fieldMap = {};
 			const machineMap = {};
 			const attachmentMap = {};
 			const toolMap = {};
+			const productMap = {};
 
-			(farmData.fields || []).forEach(f => { fieldMap[f.id] = f.name; });
-			(farmData.machines || []).forEach(m => { machineMap[m.id] = m.name; });
-			(farmData.attachments || []).forEach(a => { attachmentMap[a.id] = a.name; });
-			(farmData.tools || []).forEach(t => { toolMap[t.id] = t.name; });
+			fields.forEach(f => { fieldMap[f._id.toString()] = f.name; });
+			machines.forEach(m => { machineMap[m._id.toString()] = m.name; });
+			attachments.forEach(a => { attachmentMap[a._id.toString()] = a.name; });
+			tools.forEach(t => { toolMap[t._id.toString()] = t.name; });
+			products.forEach(p => { productMap[p._id.toString()] = p.name; });
+
+			// Get user's locale for formatting
+			const locale = getAccountLocale(account);
 
 			// Generate HTML report
+			const farmData = account.content.farmData || {};
 			const html = generateReportHtml({
 				reportType: job.reportType,
 				dateRange: job.dateRange,
-				farmName: account.content.farmName || 'Farm',
+				farmName: farmData.farmName || 'Farm',
 				jobRecords,
 				fieldMap,
 				machineMap,
 				attachmentMap,
-				toolMap
+				toolMap,
+				productMap,
+				locale
 			});
 
 			// Generate PDF
@@ -253,7 +316,7 @@ class ReportJobManager {
 			}
 
 			// Build filename
-			const farmName = account.content.farmName || 'Farm';
+			const farmName = farmData.farmName || 'Farm';
 			const now = new Date();
 			const dateTimeStr = now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
 			const filename = `${farmName.replace(/\s+/g, '_')}_Report_${dateTimeStr}.pdf`;
@@ -280,11 +343,11 @@ class ReportJobManager {
 
 					if (canAttachToEmail) {
 						// Small report: attach PDF to email
-						const emailHtml = this._buildEmailHtml(farmName, job.reportType, job.dateRange, now, farmLogo, null);
+						const emailHtml = this._buildEmailHtml(farmName, job.reportType, job.dateRange, now, farmLogo, null, locale);
 
 						await EmailQueue.getInstance().queue({
 							to: account.metadata.email,
-							subject: `📊 ${farmName} - Farm Report (${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})`,
+							subject: `📊 ${farmName} - Farm Report (${now.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })})`,
 							html: emailHtml,
 							attachments: [{
 								filename,
@@ -295,11 +358,11 @@ class ReportJobManager {
 						});
 					} else {
 						// Large report: send email with download link only
-						const emailHtml = this._buildEmailHtml(farmName, job.reportType, job.dateRange, now, farmLogo, result.downloadUrl);
+						const emailHtml = this._buildEmailHtml(farmName, job.reportType, job.dateRange, now, farmLogo, result.downloadUrl, locale);
 
 						await EmailQueue.getInstance().queue({
 							to: account.metadata.email,
-							subject: `📊 ${farmName} - Farm Report (${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})`,
+							subject: `📊 ${farmName} - Farm Report (${now.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })})`,
 							html: emailHtml,
 							attachments: [],
 							priority: 1
@@ -326,8 +389,11 @@ class ReportJobManager {
 	 * @param {Date} now - Current timestamp
 	 * @param {string|null} farmLogo - Base64 encoded farm logo (optional)
 	 * @param {string|null} downloadUrl - Download link for large reports (optional, if null PDF is attached)
+	 * @param {string} locale - BCP 47 locale tag for date/number formatting
 	 */
-	_buildEmailHtml(farmName, reportType, dateRange, now, farmLogo = null, downloadUrl = null) {
+	_buildEmailHtml(farmName, reportType, dateRange, now, farmLogo = null, downloadUrl = null, locale = 'en-US') {
+		const WEB_URL = process.env.WEB_URL || 'https://my.farmestly.dev-staging.overpassconnect.com';
+
 		const reportTypeLabels = {
 			'chronological': 'Chronological',
 			'field': 'By Field',
@@ -345,30 +411,30 @@ class ReportJobManager {
 			'custom': 'Custom Range'
 		};
 
-		// Build logo HTML if available
-		const logoHtml = farmLogo
-			? `<img src="${farmLogo}" alt="${farmName}" style="max-width: 80px; max-height: 80px; margin-bottom: 16px; border-radius: 8px;" /><br>`
-			: '';
-
 		// Build delivery message based on whether PDF is attached or needs download
 		const deliveryMessage = downloadUrl
 			? `Your farm report has been successfully generated. Due to its size, please use the button below to download it. The link will expire in 30 minutes.`
-			: `Your farm report has been successfully generated and is attached to this email. The report includes detailed information about your farm operations${dateRange !== 'all' ? ' for the selected date range' : ''}.`;
+			: `Your farm report has been successfully generated and is attached to this email.`;
 
 		// Build download button HTML if needed
 		const downloadButtonHtml = downloadUrl
 			? `
-							<!-- Download Button -->
-							<table role="presentation" style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+							<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
 								<tr>
-									<td align="center">
-										<a href="${downloadUrl}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #2E7D32 0%, #4CAF50 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px;">
-											Download Report
-										</a>
+									<td style="padding: 16px 0; text-align: center;">
+										<!--[if mso]>
+										<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${downloadUrl}" style="height:40px;v-text-anchor:middle;width:200px;" arcsize="60%" strokecolor="#E37F1B" fillcolor="#E37F1B">
+										<w:anchorlock/>
+										<center style="color:#ffffff;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:bold;">Download Report</center>
+										</v:roundrect>
+										<![endif]-->
+										<!--[if !mso]><!-->
+										<a href="${downloadUrl}" style="display: inline-block; padding: 12px 32px; background-color: #E37F1B; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; border-radius: 24px; mso-hide: all;">Download Report</a>
+										<!--<![endif]-->
 									</td>
 								</tr>
 							</table>
-							<p style="margin: 0; color: #888888; font-size: 12px; text-align: center;">
+							<p style="margin: 8px 0 0; color: #A09085; font-size: 13px; text-align: center;">
 								This link will expire in 30 minutes.
 							</p>
 			`
@@ -380,67 +446,58 @@ class ReportJobManager {
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Farm Report</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
-	<table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5;">
+<body style="margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fbf2ec;">
+	<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fbf2ec;">
 		<tr>
-			<td align="center" style="padding: 40px 20px;">
-				<table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-					<!-- Header with brand color -->
+			<td style="padding: 40px 20px;">
+				<!-- Logo -->
+				<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto;">
 					<tr>
-						<td style="padding: 40px 40px 30px; background: linear-gradient(135deg, #2E7D32 0%, #4CAF50 100%); border-radius: 8px 8px 0 0; text-align: center;">
-							${logoHtml}
-							<h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600; letter-spacing: -0.5px;">
-								${farmName}
-							</h1>
-							<p style="margin: 10px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">
-								Farm Report Generated
-							</p>
+						<td style="text-align: center; padding-bottom: 32px;">
+							<img src="${WEB_URL}/assets/farmestly_logo.png" alt="Farmestly" width="180" style="display: block; margin: 0 auto;">
 						</td>
 					</tr>
-
+				</table>
+				<!-- Card -->
+				<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(66, 33, 11, 0.12);">
 					<!-- Content -->
 					<tr>
-						<td style="padding: 40px;">
-							<h2 style="margin: 0 0 20px; color: #2E7D32; font-size: 20px; font-weight: 600;">
-								Your Farm Report is Ready
-							</h2>
-							<p style="margin: 0 0 16px; color: #333333; font-size: 15px; line-height: 1.6;">
-								Hello,
-							</p>
-							<p style="margin: 0 0 16px; color: #333333; font-size: 15px; line-height: 1.6;">
+						<td style="padding: 48px 40px;">
+							<h1 style="margin: 0 0 8px; color: #42210B; font-size: 22px; font-weight: 500; text-align: center;">Your Farm Report is Ready</h1>
+							<p style="margin: 0 0 24px; color: #A09085; font-size: 15px; line-height: 1.5; text-align: center;">
 								${deliveryMessage}
 							</p>
 ${downloadButtonHtml}
 							<!-- Info Box -->
-							<table role="presentation" style="width: 100%; border-collapse: collapse; margin: 24px 0; background-color: #f1f8f4; border-radius: 6px; border-left: 4px solid #4CAF50;">
+							<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 24px 0; background-color: #fbf2ec; border-radius: 10px;">
 								<tr>
 									<td style="padding: 16px 20px;">
-										<p style="margin: 0 0 8px; color: #2E7D32; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+										<p style="margin: 0 0 8px; color: #E37F1B; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
 											Report Details
 										</p>
-										<p style="margin: 0; color: #555555; font-size: 14px; line-height: 1.5;">
+										<p style="margin: 0; color: #42210B; font-size: 14px; line-height: 1.6;">
+											<strong>Farm:</strong> ${farmName}<br>
 											<strong>Type:</strong> ${reportTypeLabels[reportType] || reportType}<br>
 											<strong>Period:</strong> ${dateRangeLabels[dateRange] || dateRange}<br>
-											<strong>Generated:</strong> ${now.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+											<strong>Generated:</strong> ${now.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}
 										</p>
 									</td>
 								</tr>
 							</table>
 
-							<p style="margin: 24px 0 0; color: #666666; font-size: 14px; line-height: 1.6;">
+							<p style="margin: 24px 0 0; color: #A09085; font-size: 13px; line-height: 1.5; text-align: center;">
 								If you have any questions about this report, please don't hesitate to reach out.
 							</p>
 						</td>
 					</tr>
-
-					<!-- Footer -->
+				</table>
+				<!-- Footer -->
+				<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto;">
 					<tr>
-						<td style="padding: 30px 40px; background-color: #fafafa; border-radius: 0 0 8px 8px; border-top: 1px solid #e0e0e0;">
-							<p style="margin: 0; color: #888888; font-size: 12px; line-height: 1.5; text-align: center;">
-								This is an automated message from your farm management system.<br>
-								© ${now.getFullYear()} ${farmName}. All rights reserved.
-							</p>
+						<td style="padding: 24px 0; text-align: center;">
+							<p style="margin: 0; color: #A09085; font-size: 12px;">&copy; ${now.getFullYear()} Farmestly. All rights reserved.</p>
 						</td>
 					</tr>
 				</table>

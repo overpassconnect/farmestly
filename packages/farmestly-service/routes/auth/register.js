@@ -6,6 +6,7 @@ const router = express.Router();
 const { getDb } = require('../../utils/db');
 const { ok, fail } = require('../../utils/response');
 const { validate } = require('../../middleware/validation');
+const { deriveLocaleFromCountry } = require('../../utils/locale');
 const G_DB_FIRST_STATE = require('../../db_first_state.json');
 
 const registerRules = [
@@ -22,11 +23,14 @@ const registerRules = [
 	body('email')
 		.optional({ nullable: true, checkFalsy: true })
 		.isEmail().withMessage('email.invalid')
-		.normalizeEmail()
+		.normalizeEmail(),
+	body('locale')
+		.optional({ nullable: true, checkFalsy: true })
+		.matches(/^[a-z]{2}(-[A-Z]{2})?$/).withMessage('locale.invalid')
 ];
 
 router.post('/', validate(registerRules), (req, res) => {
-	const { username, password, countryCode } = req.body;
+	const { username, password, countryCode, email, locale } = req.body;
 	const db_entry = JSON.parse(JSON.stringify(G_DB_FIRST_STATE));
 
 	bcrypt.hash(password, 10)
@@ -34,7 +38,9 @@ router.post('/', validate(registerRules), (req, res) => {
 			db_entry.metadata.password = hash;
 			db_entry.metadata.username = username;
 			db_entry.metadata.country = countryCode;
-			db_entry.metadata.email = email || null; // Add email
+			db_entry.metadata.email = email || null;
+			// Store locale: use provided value, or derive from country code
+			db_entry.metadata.locale = locale || deriveLocaleFromCountry(countryCode);
 
 			// Remove latestSession fields - no longer needed
 			delete db_entry.metadata.latestSession;

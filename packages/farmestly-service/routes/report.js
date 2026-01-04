@@ -5,6 +5,32 @@ const { ok, fail } = require('../utils/response');
 const { ObjectId } = require('mongodb');
 const { ReportJobManager, JobStatus, DeliveryType, MAX_RECORDS_TOTAL, MAX_EMAIL_ATTACHMENT_RECORDS } = require('../utils/ReportJobManager');
 const { getStorage } = require('../utils/ReportStorage');
+const { createReportGenerationLimiter } = require('../middleware/rateLimiter');
+
+// Rate limiter (initialized after Redis is ready)
+let reportGenerationLimiter = null;
+
+/**
+ * Initialize rate limiters - call after Redis is connected
+ */
+function initializeLimiters() {
+	try {
+		reportGenerationLimiter = createReportGenerationLimiter();
+		console.log('[Report] Rate limiters initialized');
+	} catch (err) {
+		console.warn('[Report] Rate limiters not initialized (Redis not ready):', err.message);
+	}
+}
+
+/**
+ * Middleware to apply rate limiter if initialized
+ */
+function applyReportLimiter(req, res, next) {
+	if (reportGenerationLimiter) {
+		return reportGenerationLimiter(req, res, next);
+	}
+	next();
+}
 
 /**
  * Helper to build date query filter from request params
@@ -33,7 +59,7 @@ function buildDateQuery(dateRange, startDate, endDate) {
 	}
 
 	const end = endDate ? new Date(endDate) : now;
-	return { startTime: { $gte: start, $lte: end } };
+	return { startedAt: { $gte: start, $lte: end } };
 }
 
 /**
@@ -94,8 +120,9 @@ router.get('/precheck', async (req, res) => {
  * POST /report
  * Create a new report generation job.
  * Responds immediately with 202 Accepted and the jobId for polling.
+ * Rate limited to prevent abuse.
  */
-router.post('/', async (req, res) => {
+router.post('/', applyReportLimiter, async (req, res) => {
 	try {
 		const account = await getDb()
 			.collection('Accounts')
@@ -233,35 +260,7 @@ router.get('/latest', async (req, res) => {
 	}
 });
 
-/**
- * GET /report/download/:key
- * Serve a PDF file with signed URL verification.
- * Uses nginx X-Accel-Redirect for efficient file serving.
- */
-router.get('/download/:key', async (req, res) => {
-	try {
-		const storage = getStorage();
-
-		// Verify the signed URL
-		if (!storage.verifyRequest(req)) {
-			return res.status(403).json(fail('INVALID_OR_EXPIRED_LINK'));
-		}
-
-		const key = req.params.key;
-
-		// Check if file exists
-		const exists = await storage.exists(key);
-		if (!exists) {
-			return res.status(404).json(fail('FILE_NOT_FOUND'));
-		}
-
-		// Let nginx serve the file via X-Accel-Redirect
-		storage.sendFile(key, res);
-
-	} catch (err) {
-		console.error('[Report] Download error:', err);
-		res.status(500).json(fail('INTERNAL_ERROR'));
-	}
-});
+// NOTE: /report/download/:key is handled by routes/report/download.js (public, no auth required)
 
 module.exports = router;
+module.exports.initializeLimiters = initializeLimiters;

@@ -1,13 +1,18 @@
 const express = require('express');
-const { query } = require('express-validator');
+const { query, body } = require('express-validator');
 const { getDb } = require('../../utils/db');
 const router = express.Router();
 const { ok, fail } = require('../../utils/response');
 const { validate } = require('../../middleware/validation');
 const { ObjectId } = require('mongodb');
 
+const notesValidation = body('notes')
+	.optional({ nullable: true, checkFalsy: true })
+	.isLength({ max: 500 }).withMessage('notes.tooLong')
+	.trim();
+
 // POST /tool/add - Create a new tool
-router.post('/add', async (req, res) => {
+router.post('/add', validate([notesValidation]), async (req, res) => {
 	try {
 		const account = await getDb().collection('Accounts').findOne({
 			_id: new ObjectId(req.session.accountId)
@@ -24,7 +29,8 @@ router.post('/add', async (req, res) => {
 			type: req.body.type || null,
 			brand: req.body.brand || null,
 			model: req.body.model || null,
-			powerOnTime: 0  // seconds
+			powerOnTime: 0,  // seconds
+			notes: req.body.notes || null
 		};
 
 		await getDb().collection('Tools').insertOne(toolDoc);
@@ -37,7 +43,7 @@ router.post('/add', async (req, res) => {
 });
 
 // POST /tool/update - Update an existing tool
-router.post('/update', async (req, res) => {
+router.post('/update', validate([notesValidation]), async (req, res) => {
 	try {
 		if (!req.body._id || !ObjectId.isValid(req.body._id)) {
 			return res.status(400).json(fail('INVALID_ID'));
@@ -55,7 +61,8 @@ router.post('/update', async (req, res) => {
 			name: req.body.name,
 			type: req.body.type || null,
 			brand: req.body.brand || null,
-			model: req.body.model || null
+			model: req.body.model || null,
+			notes: req.body.notes || null
 		};
 
 		const result = await getDb().collection('Tools').findOneAndUpdate(

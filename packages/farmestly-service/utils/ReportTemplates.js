@@ -1,9 +1,8 @@
 // utils/ReportTemplates.js
 
-// Paste your full base64 string here
-// utils/ReportTemplates.js
-
 const { LOGO_BASE64 } = require('../constants');
+const { DEFAULT_LOCALE } = require('./locale');
+
 function escapeHtml(str) {
 	if (!str) return '';
 	return String(str)
@@ -13,11 +12,29 @@ function escapeHtml(str) {
 		.replace(/"/g, '&quot;');
 }
 
-function formatDate(dateStr) {
+/**
+ * Format a date using the user's locale.
+ * @param {string|Date} dateStr - Date to format
+ * @param {string} locale - BCP 47 locale tag
+ * @returns {string} - Formatted date string
+ */
+function formatDate(dateStr, locale = DEFAULT_LOCALE) {
 	if (!dateStr) return 'N/A';
-	return new Date(dateStr).toLocaleDateString('en-US', {
+	return new Date(dateStr).toLocaleDateString(locale, {
 		year: 'numeric', month: 'short', day: 'numeric'
 	});
+}
+
+/**
+ * Format a number using the user's locale.
+ * @param {number} num - Number to format
+ * @param {string} locale - BCP 47 locale tag
+ * @param {object} options - Intl.NumberFormat options
+ * @returns {string} - Formatted number string
+ */
+function formatNumber(num, locale = DEFAULT_LOCALE, options = {}) {
+	if (num == null || isNaN(num)) return 'N/A';
+	return new Intl.NumberFormat(locale, options).format(num);
 }
 
 function formatDuration(ms) {
@@ -42,10 +59,10 @@ function getRecordDurationMs(r) {
         return r.elapsedTime; // assume ms
     }
 
-    if (r && r.startTime && r.endTime) {
+    if (r && r.startedAt && r.endedAt) {
         try {
-            const start = new Date(r.startTime);
-            const end = new Date(r.endTime);
+            const start = new Date(r.startedAt);
+            const end = new Date(r.endedAt);
             const diff = end - start;
             if (!isNaN(diff)) return diff;
         } catch (e) {
@@ -148,15 +165,38 @@ const baseStyles = `
         margin-bottom: 8px; 
     }
     
-    .no-data { 
-        text-align: center; 
-        padding: 16px; 
+    .no-data {
+        text-align: center;
+        padding: 16px;
         color: ${colors.PRIMARY_LIGHT};
         background: ${colors.SECONDARY_LIGHT};
         font-weight: 500;
         font-size: 10px;
     }
-    
+
+    /* Detail sub-rows for sow/spray/harvest data */
+    .detail-row {
+        background: ${colors.SECONDARY_LIGHT} !important;
+    }
+    .detail-row td {
+        border-bottom: 1px solid ${colors.PRIMARY_LIGHT};
+    }
+    .detail-cell {
+        padding: 4px 6px 6px 20px !important;
+        font-size: 8px;
+        color: ${colors.PRIMARY_LIGHT};
+        line-height: 1.4;
+    }
+    .detail-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .detail-item strong {
+        color: ${colors.PRIMARY};
+        font-weight: 500;
+    }
+
     /* Footer fixed at bottom of each page when printing via Puppeteer */
     .footer {
         position: fixed;
@@ -179,7 +219,7 @@ const baseStyles = `
     }
 `;
 
-function generateHeader(farmName, dateRange, totalRecords) {
+function generateHeader(farmName, dateRange, totalRecords, locale = DEFAULT_LOCALE) {
 	const dateRangeText = {
 		'all': 'All Time',
 		'month': 'Last Month',
@@ -194,28 +234,124 @@ function generateHeader(farmName, dateRange, totalRecords) {
             <div class="header-info">
                 <h1>${escapeHtml(farmName)} Farm Report</h1>
                 <div class="meta">
-                    ${formatDate(new Date())} • ${dateRangeText} • ${totalRecords} records
+                    ${formatDate(new Date(), locale)} • ${dateRangeText} • ${formatNumber(totalRecords, locale)} records
                 </div>
             </div>
         </div>
     `;
 }
 
-function generateJobTable(records, maps) {
+/**
+ * Generate detail sub-row for sow jobs
+ */
+function generateSowDetails(r, locale) {
+	const cultivation = r.cultivation || {};
+	const sowData = r.data?.sow || {};
+
+	const items = [];
+	if (cultivation.crop) items.push(`<span class="detail-item"><strong>Crop:</strong> ${escapeHtml(cultivation.crop)}</span>`);
+	if (cultivation.variety) items.push(`<span class="detail-item"><strong>Variety:</strong> ${escapeHtml(cultivation.variety)}</span>`);
+	if (sowData.lotNumber) items.push(`<span class="detail-item"><strong>Lot #:</strong> ${escapeHtml(sowData.lotNumber)}</span>`);
+	if (sowData.seedManufacturer) items.push(`<span class="detail-item"><strong>Manufacturer:</strong> ${escapeHtml(sowData.seedManufacturer)}</span>`);
+	if (sowData.eppoCode) items.push(`<span class="detail-item"><strong>EPPO:</strong> ${escapeHtml(sowData.eppoCode)}</span>`);
+
+	if (items.length === 0) return '';
+
+	return `
+        <tr class="detail-row">
+            <td colspan="6" class="detail-cell">
+                <div class="detail-items">${items.join('')}</div>
+            </td>
+        </tr>
+    `;
+}
+
+/**
+ * Generate detail sub-row for spray jobs
+ */
+function generateSprayDetails(r, maps, locale) {
+	const sprayData = r.data?.spray || {};
+
+	const items = [];
+
+	// Products
+	if (sprayData.products && sprayData.products.length > 0) {
+		const productDetails = sprayData.products.map(p => {
+			const productName = p.name || maps.productMap?.[p.id] || 'Unknown Product';
+			const rate = p.rate != null ? ` @ ${formatNumber(p.rate, locale)} L/ha` : '';
+			return escapeHtml(productName) + rate;
+		}).join(', ');
+		items.push(`<span class="detail-item"><strong>Products:</strong> ${productDetails}</span>`);
+	}
+
+	// Application details
+	if (sprayData.carrierRate != null) items.push(`<span class="detail-item"><strong>Carrier:</strong> ${formatNumber(sprayData.carrierRate, locale)} L/ha</span>`);
+	if (sprayData.coveredArea != null) items.push(`<span class="detail-item"><strong>Area:</strong> ${formatNumber(sprayData.coveredArea, locale, { maximumFractionDigits: 2 })} ha</span>`);
+	if (sprayData.totalWater != null) items.push(`<span class="detail-item"><strong>Water:</strong> ${formatNumber(sprayData.totalWater, locale)} L</span>`);
+
+	if (items.length === 0) return '';
+
+	return `
+        <tr class="detail-row">
+            <td colspan="6" class="detail-cell">
+                <div class="detail-items">${items.join('')}</div>
+            </td>
+        </tr>
+    `;
+}
+
+/**
+ * Generate detail sub-row for harvest jobs
+ */
+function generateHarvestDetails(r, locale) {
+	const harvestData = r.data?.harvest || {};
+
+	const items = [];
+	if (harvestData.yield != null) items.push(`<span class="detail-item"><strong>Yield:</strong> ${formatNumber(harvestData.yield, locale)} kg</span>`);
+	if (harvestData.moisture != null) items.push(`<span class="detail-item"><strong>Moisture:</strong> ${formatNumber(harvestData.moisture, locale)}%</span>`);
+
+	if (items.length === 0) return '';
+
+	return `
+        <tr class="detail-row">
+            <td colspan="6" class="detail-cell">
+                <div class="detail-items">${items.join('')}</div>
+            </td>
+        </tr>
+    `;
+}
+
+function generateJobTable(records, maps, locale = DEFAULT_LOCALE) {
 	if (!records || records.length === 0) {
 		return '<div class="no-data">No records found</div>';
 	}
 
-	const rows = records.map(r => `
+	const rows = records.map(r => {
+		// Job records use: type (not jobType), startedAt (not startTime), machine.name/machine.id
+		const machineName = r.machine?.name || maps.machineMap[r.machine?.id] || '-';
+
+		// Main row
+		let rowHtml = `
         <tr>
-            <td>${formatDate(r.startTime)}</td>
-            <td>${capitalizeFirst(escapeHtml(r.jobType))}</td>
+            <td>${formatDate(r.startedAt, locale)}</td>
+            <td>${capitalizeFirst(escapeHtml(r.type))}</td>
             <td>${escapeHtml(maps.fieldMap[r.fieldId] || 'Unknown')}</td>
-            <td>${escapeHtml(r.machineName || maps.machineMap[r.machine] || '-')}</td>
+            <td>${escapeHtml(machineName)}</td>
             <td>${formatDuration(getRecordDurationMs(r))}</td>
             <td>${escapeHtml(r.notes || '-')}</td>
-        </tr>
-    `).join('');
+        </tr>`;
+
+		// Add detail sub-row based on job type
+		if (r.type === 'sow') {
+			rowHtml += generateSowDetails(r, locale);
+		} else if (r.type === 'spray') {
+			rowHtml += generateSprayDetails(r, maps, locale);
+		} else if (r.type === 'harvest') {
+			rowHtml += generateHarvestDetails(r, locale);
+		}
+
+		return rowHtml;
+	}).join('');
 
 	return `
         <table>
@@ -234,28 +370,45 @@ function generateJobTable(records, maps) {
     `;
 }
 
-function generateGroupedReport(records, groupKey, groupMap, maps) {
+function generateGroupedReport(records, groupKey, groupMap, maps, locale = DEFAULT_LOCALE) {
 	const groups = {};
 
 	records.forEach(r => {
-		const rawValue = r[groupKey];
 		let label;
 
-        // Prefer jobTitle when grouping by jobType so custom-named jobs are grouped by name
-        if (groupKey === 'jobType' && r.jobTitle) {
-            label = r.jobTitle;
-        } else if (!rawValue) {
-			// No value - use "No Machine", "No Field", etc.
-			label = 'No ' + capitalizeFirst(groupKey.replace('Id', ''));
-		} else if (groupMap && groupMap[rawValue]) {
-			// Have a mapping (for IDs like fieldId -> field name)
-			label = groupMap[rawValue];
-		} else if (r[groupKey + 'Name']) {
-			// Have a Name field (e.g., machineName)
-			label = r[groupKey + 'Name'];
+		// Handle different group key types
+		if (groupKey === 'type') {
+			// For job type grouping, prefer template name for custom jobs
+			if (r.type === 'custom' && r.template?.name) {
+				label = r.template.name;
+			} else {
+				label = capitalizeFirst(r.type || 'Unknown');
+			}
+		} else if (groupKey === 'fieldId') {
+			// Field ID is a string, look up in map
+			label = groupMap[r.fieldId] || 'Unknown Field';
+		} else if (groupKey === 'machine' || groupKey === 'attachment' || groupKey === 'tool') {
+			// These are objects with { id, name }
+			const obj = r[groupKey];
+			if (!obj) {
+				label = 'No ' + capitalizeFirst(groupKey);
+			} else if (obj.name) {
+				label = obj.name;
+			} else if (obj.id && groupMap[obj.id]) {
+				label = groupMap[obj.id];
+			} else {
+				label = 'Unknown ' + capitalizeFirst(groupKey);
+			}
 		} else {
-			// Use raw value (for job types: 'sow', 'harvest', 'custom')
-			label = capitalizeFirst(rawValue);
+			// Fallback for any other groupKey
+			const rawValue = r[groupKey];
+			if (!rawValue) {
+				label = 'No ' + capitalizeFirst(groupKey.replace('Id', ''));
+			} else if (groupMap && groupMap[rawValue]) {
+				label = groupMap[rawValue];
+			} else {
+				label = capitalizeFirst(String(rawValue));
+			}
 		}
 
 		if (!groups[label]) groups[label] = [];
@@ -266,35 +419,35 @@ function generateGroupedReport(records, groupKey, groupMap, maps) {
 		.sort(([a], [b]) => a.localeCompare(b))
 		.map(([label, recs]) => `
             <div class="section">
-                <div class="group-header">${escapeHtml(label)} (${recs.length} jobs)</div>
-                ${generateJobTable(recs, maps)}
+                <div class="group-header">${escapeHtml(label)} (${formatNumber(recs.length, locale)} jobs)</div>
+                ${generateJobTable(recs, maps, locale)}
             </div>
         `).join('');
 }
 
 function generateReportHtml(data) {
-	const { reportType, dateRange, farmName, jobRecords, fieldMap, machineMap, attachmentMap, toolMap } = data;
-	const maps = { fieldMap, machineMap, attachmentMap, toolMap };
+	const { reportType, dateRange, farmName, jobRecords, fieldMap, machineMap, attachmentMap, toolMap, productMap, locale = DEFAULT_LOCALE } = data;
+	const maps = { fieldMap, machineMap, attachmentMap, toolMap, productMap };
 
 	let content;
 	switch (reportType) {
 		case 'field':
-			content = generateGroupedReport(jobRecords, 'fieldId', fieldMap, maps);
+			content = generateGroupedReport(jobRecords, 'fieldId', fieldMap, maps, locale);
 			break;
 		case 'machine':
-			content = generateGroupedReport(jobRecords, 'machine', machineMap, maps);
+			content = generateGroupedReport(jobRecords, 'machine', machineMap, maps, locale);
 			break;
 		case 'job_type':
-			content = generateGroupedReport(jobRecords, 'jobType', {}, maps);
+			content = generateGroupedReport(jobRecords, 'type', {}, maps, locale);
 			break;
 		case 'attachment':
-			content = generateGroupedReport(jobRecords, 'attachment', attachmentMap, maps);
+			content = generateGroupedReport(jobRecords, 'attachment', attachmentMap, maps, locale);
 			break;
 		case 'tool':
-			content = generateGroupedReport(jobRecords, 'tool', toolMap, maps);
+			content = generateGroupedReport(jobRecords, 'tool', toolMap, maps, locale);
 			break;
 		default:
-			content = `<div class="section">${generateJobTable(jobRecords, maps)}</div>`;
+			content = `<div class="section">${generateJobTable(jobRecords, maps, locale)}</div>`;
 	}
 
 	return `
@@ -305,7 +458,7 @@ function generateReportHtml(data) {
             <style>${baseStyles}</style>
         </head>
         <body>
-            ${generateHeader(farmName, dateRange, jobRecords.length)}
+            ${generateHeader(farmName, dateRange, jobRecords.length, locale)}
             ${content}
             <div class="footer">
                 Generated by Farmestly • ${new Date().getFullYear()}
@@ -315,4 +468,4 @@ function generateReportHtml(data) {
     `;
 }
 
-module.exports = { generateReportHtml };
+module.exports = { generateReportHtml, formatNumber, formatDate };
