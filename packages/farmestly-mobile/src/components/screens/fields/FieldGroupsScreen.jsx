@@ -208,7 +208,7 @@ const FieldGroupsScreen = () => {
 
 	return (
 		<ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-			<Text style={styles.title}>Field Groups</Text>
+			<Text style={styles.title}>Edit Groups - Add Fields</Text>
 
 			{/* Add New Field Section */}
 			<View style={styles.section}>

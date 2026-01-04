@@ -531,7 +531,7 @@ const JobSummaryScreen = () => {
 											name="harvestedKg"
 											label={t('screens:jobSummary.totalAmountHarvested', { unit: symbol('mass') })}
 											placeholder={t('screens:jobSummary.enterTotal', { unit: symbol('mass') })}
-											keyboardType="numeric"
+											numeric={true}
 											isLast={true}
 										/>
 

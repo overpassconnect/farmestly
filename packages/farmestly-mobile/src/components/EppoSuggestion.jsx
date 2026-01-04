@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Image, ActivityIndicator, TouchableOpacity } fr
 import { useTranslation } from 'react-i18next';
 import { useApi } from '../hooks/useApi';
 import { useGlobalContext } from './context/GlobalContextProvider';
-import { useLanguage } from './context/LanguageContextProvider';
+import { useLocale } from '../providers/LocaleProvider';
 import colors from '../globals/colors';
 import { toTitleCase, deduplicateEppoResults, getBestFullnameFromResults } from '../utils/eppoHelpers';
 
@@ -18,7 +18,7 @@ const EppoSuggestion = ({ cropValue, eppoValue, onSuggestionChange }) => {
 	const { t } = useTranslation('common');
 	const { api } = useApi();
 	const { isOffline } = useGlobalContext();
-	const { currentLanguage } = useLanguage();
+	const { locale } = useLocale();
 	const [suggestion, setSuggestion] = useState(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [noMatch, setNoMatch] = useState(false);
@@ -26,9 +26,9 @@ const EppoSuggestion = ({ cropValue, eppoValue, onSuggestionChange }) => {
 	const lastCropQuery = useRef('');
 	const lastAutoFilledEppo = useRef(''); // Track EPPO code auto-filled from crop search
 	const requestIdRef = useRef(0);
-	// Use ref for language to avoid stale closures
-	const languageRef = useRef(currentLanguage);
-	languageRef.current = currentLanguage;
+	// Use ref for locale to avoid stale closures
+	const localeRef = useRef(locale);
+	localeRef.current = locale;
 
 	// Effect for crop-based search
 	useEffect(() => {
@@ -79,7 +79,7 @@ const EppoSuggestion = ({ cropValue, eppoValue, onSuggestionChange }) => {
 				lastCropQuery.current = cropQuery;
 
 				// Use ref for current language to avoid stale closure
-				const lang = languageRef.current;
+				const lang = localeRef.current;
 
 				if (ok && data?.results?.length > 0) {
 					const deduplicated = deduplicateEppoResults(data.results, lang);
@@ -159,7 +159,7 @@ const EppoSuggestion = ({ cropValue, eppoValue, onSuggestionChange }) => {
 					return;
 				}
 
-				const lang = languageRef.current;
+				const lang = localeRef.current;
 
 				if (ok && data?.results?.length > 0) {
 					// When searching by EPPO code, prioritize matches that include the query

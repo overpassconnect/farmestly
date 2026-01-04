@@ -11,6 +11,7 @@
 		"continue": "Continue",
 		"back": "Back",
 		"next": "Next",
+		"skip": "Skip",
 		"done": "Done",
 		"ok": "OK",
 		"yes": "Yes",
@@ -159,6 +160,7 @@
 		"rei": "Re-entry interval",
 		"phi": "Pre-harvest interval",
 		"productNotes": "Additional notes about this product",
+		"equipmentNotes": "Additional notes about this equipment",
 		"applyCropProtection": "Apply crop protection products",
 		"irrigateField": "Water your crops",
 		"waterUsageCalculation": "Water usage will be calculated automatically based on the flow rate ({{flowRate}} {{unit}}/hour) and elapsed time."
@@ -180,6 +182,10 @@
 		"adjuvant": "Enhances spray effectiveness",
 		"fertilizer": "Provides plant nutrients",
 		"other": "Other product types"
+	},
+	"verification": {
+		"verified": "Verified",
+		"pendingVerification": "Pending verification"
 	},
 	"general": {
 		"profile": "Profile",

@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import { Text, StyleSheet } from 'react-native';
+import { Text, StyleSheet, Image } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useBottomSheet } from '../components/sheets/BottomSheetContextProvider';
 import { BottomSheetView } from '@gorhom/bottom-sheet';
@@ -39,7 +39,10 @@ export function useApi() {
 
 		openBottomSheet(
 			<BottomSheetView style={styles.container}>
-				<Text style={styles.icon}>⚠</Text>
+				<Image
+					source={require('../assets/icons/exclamation_circle_orange.png')}
+					style={styles.icon}
+				/>
 				<Text style={styles.title}>{t('error')}</Text>
 				<Text style={styles.message}>{message}</Text>
 				<PrimaryButton
@@ -103,7 +106,7 @@ export function useApi() {
 
 const styles = StyleSheet.create({
 	container: { padding: 16, alignItems: 'center' },
-	icon: { fontSize: 48, color: colors.WARNING, marginBottom: 8 },
+	icon: { width: 48, height: 48, marginBottom: 8 },
 	title: { fontSize: 24, fontFamily: 'Geologica-SemiBold', color: colors.PRIMARY, marginBottom: 12 },
 	message: { fontSize: 18, fontFamily: 'Geologica-Regular', color: colors.PRIMARY_LIGHT, textAlign: 'center', lineHeight: 26 },
 });

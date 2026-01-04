@@ -509,7 +509,8 @@ const TabHome = () => {
 		<View style={styles.container}>
 			<SlidingHeader
 				ref={headerRef}
-				title={farmData.farmName}
+				title={farmData.name || farmData.farmData?.farmName || farmData.farmName}
+				farmName={farmData.name || farmData.farmData?.farmName || farmData.farmName}
 				views={views}
 				fields={visibleFields}
 				onViewChange={handleViewChange}
@@ -521,6 +522,27 @@ const TabHome = () => {
 					if (field) navigation.navigate('Field', { forFirstSetup: false, polygonId: id, selectedFieldData: field });
 				}}
 				onReportsPress={() => navigation.navigate('CreateReportScreen')}
+				onGroupChange={(group) => {
+					setCurrentGroup(group);
+					setCurrentViewIndex(0);
+					if (headerRef.current) {
+						headerRef.current.slideToIndex(0);
+					}
+					// Center map on the group's fields
+					if (mapRef.current) {
+						mapRef.current.hideLabels();
+						mapRef.current.clearSelection();
+						if (group.fieldIds && group.fieldIds.length > 0) {
+							mapRef.current.fitToFields(group.fieldIds);
+						} else {
+							mapRef.current.fitToAll();
+						}
+						setTimeout(() => {
+							mapRef.current?.showLabels();
+						}, 400);
+					}
+					setSelectedField(null);
+				}}
 			/>
 
 			{isOffline ? (

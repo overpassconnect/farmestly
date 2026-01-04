@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import colors from '../../../globals/colors';
+import { formStyles } from '../form/formStyles';
 
 /**
  * OptionPicker - A modular component for selecting one option from a list
@@ -35,8 +36,8 @@ const OptionPicker = ({
 
 	return (
 		<View style={[styles.container, containerStyle]}>
-			{label && <Text style={styles.label}>{label}</Text>}
-			{description && <Text style={styles.description}>{description}</Text>}
+			{label && <Text style={formStyles.formLabel}>{label}:</Text>}
+			{description && <Text style={formStyles.formDescription}>{description}</Text>}
 			<View style={styles.optionsContainer}>
 				{options.map((option) => {
 					const isSelected = value === option.key;
@@ -66,19 +67,7 @@ const OptionPicker = ({
 
 const styles = StyleSheet.create({
 	container: {
-		marginBottom: 20
-	},
-	label: {
-		fontFamily: 'Geologica-Medium',
-		fontSize: 16,
-		color: colors.PRIMARY,
-		marginBottom: 4
-	},
-	description: {
-		fontFamily: 'Geologica-Regular',
-		fontSize: 14,
-		color: colors.PRIMARY_LIGHT,
-		marginBottom: 8
+		marginBottom: 16
 	},
 	optionsContainer: {
 		flexDirection: 'row',

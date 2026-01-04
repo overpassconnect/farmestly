@@ -285,6 +285,17 @@ export const formStyles = StyleSheet.create({
 		borderBottomWidth: 1,
 		borderBottomColor: colors.SECONDARY_LIGHT,
 	},
+	// Character count styles
+	characterCount: {
+		fontSize: 13,
+		fontFamily: 'Geologica-Regular',
+		color: colors.PRIMARY_LIGHT,
+		textAlign: 'right',
+		marginTop: 4,
+	},
+	characterCountError: {
+		color: 'red',
+	},
 });
 
 export default formStyles;

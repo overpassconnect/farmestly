@@ -224,7 +224,7 @@ const StepNameAndSave = ({ state, updateState, onBack }) => {
 							label="Carrier Rate"
 							description="Default rate when using this template"
 							placeholder="Enter default carrier rate"
-							keyboardType="numeric"
+							numeric={true}
 							unit={rateSymbol(true)}
 							isLast={true}
 						/>

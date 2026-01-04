@@ -382,9 +382,11 @@ const JobDetailScreen = () => {
 						<Text style={styles.subtitle}>{getFieldName()}</Text>
 					</View>
 					{isSynced && !isEditing && (
-						<TouchableOpacity onPress={() => setIsEditing(true)} style={styles.editButton}>
-							<Text style={styles.editButtonText}>Edit</Text>
-						</TouchableOpacity>
+						<PrimaryButton
+							text="Edit"
+							onPress={() => setIsEditing(true)}
+							style={{ paddingHorizontal: 24 }}
+						/>
 					)}
 				</View>
 
@@ -448,12 +450,24 @@ const JobDetailScreen = () => {
 									<Text style={styles.sectionHeader}>Sowing Details</Text>
 									<View style={styles.row}>
 										<Text style={styles.label}>Crop</Text>
-										<Text style={styles.value}>{jobRecord.data?.sow?.crop || jobRecord.crop || 'N/A'}</Text>
+										<Text style={styles.value}>{jobRecord.data?.sow?.crop || jobRecord.cultivation?.crop || jobRecord.crop || 'N/A'}</Text>
 									</View>
-									{(jobRecord.data?.sow?.variety || jobRecord.variety) && (
+									{(jobRecord.data?.sow?.variety || jobRecord.cultivation?.variety || jobRecord.variety) && (
 										<View style={styles.row}>
 											<Text style={styles.label}>Variety</Text>
-											<Text style={styles.value}>{jobRecord.data?.sow?.variety || jobRecord.variety}</Text>
+											<Text style={styles.value}>{jobRecord.data?.sow?.variety || jobRecord.cultivation?.variety || jobRecord.variety}</Text>
+										</View>
+									)}
+									{jobRecord.data?.sow?.eppoCode && (
+										<View style={styles.row}>
+											<Text style={styles.label}>EPPO Code</Text>
+											<Text style={styles.value}>{jobRecord.data.sow.eppoCode}</Text>
+										</View>
+									)}
+									{jobRecord.data?.sow?.seedDetails && (
+										<View style={styles.row}>
+											<Text style={styles.label}>Seed Details</Text>
+											<Text style={styles.value}>{jobRecord.data.sow.seedDetails}</Text>
 										</View>
 									)}
 								</View>
@@ -470,7 +484,7 @@ const JobDetailScreen = () => {
 											unit={symbol('mass')}
 											inline={true}
 											placeholder="0"
-											keyboardType="numeric"
+											numeric={true}
 											inputStyle={{ width: 120 }}
 										/>
 									) : (
@@ -512,7 +526,7 @@ const JobDetailScreen = () => {
 											unit={rateSymbol(true)}
 											inline={true}
 											placeholder="0"
-											keyboardType="numeric"
+											numeric={true}
 											inputStyle={{ width: 120 }}
 										/>
 									) : (
@@ -538,7 +552,7 @@ const JobDetailScreen = () => {
 															unit={rateSymbol(product.isVolume)}
 															inline={true}
 															placeholder="0"
-															keyboardType="numeric"
+															numeric={true}
 															inputStyle={{ width: 120 }}
 														/>
 													) : (

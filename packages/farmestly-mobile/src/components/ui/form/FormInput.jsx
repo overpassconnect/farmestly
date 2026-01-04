@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { View, TextInput, Text } from 'react-native';
 import { useFormikContext } from 'formik';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +6,7 @@ import colors from '../../../globals/colors';
 import { useFormikHelper } from './FormikHelperContext';
 import { getNestedValue, setNestedValue } from './formUtils';
 import { formStyles as styles } from './formStyles';
+import { localeParser } from '../../../globals/locale/parser';
 
 // FormInput component that automatically handles field registration and focus navigation
 export const FormInput = ({
@@ -18,6 +19,12 @@ export const FormInput = ({
 	inline = false,
 	inputStyle,
 	containerStyle,
+	multiline = false,
+	numberOfLines = 1,
+	maxLength,
+	showCharacterCount = false,
+	numeric = false,
+	numericOptions = {},
 	...props
 }) => {
 	const inputRef = useRef(null);
@@ -27,8 +34,37 @@ export const FormInput = ({
 
 	// Get nested values for array field support (e.g., "products[0].rate")
 	const rawValue = getNestedValue(values, name);
-	// Convert to string for TextInput - handle numbers, null, undefined
-	const fieldValue = rawValue != null ? String(rawValue) : '';
+
+	// For numeric fields, maintain separate display state (localized string)
+	// while form state holds the JS number
+	const [displayValue, setDisplayValue] = useState(() => {
+		if (numeric && rawValue != null && !isNaN(rawValue)) {
+			return localeParser.format(rawValue, numericOptions);
+		}
+		return '';
+	});
+
+	// Sync display value when rawValue changes externally (e.g., form reset, initial values)
+	const prevRawValueRef = useRef(rawValue);
+	useEffect(() => {
+		if (numeric) {
+			// Only update display if the raw value actually changed (not from our own input)
+			if (prevRawValueRef.current !== rawValue) {
+				if (rawValue != null && !isNaN(rawValue)) {
+					setDisplayValue(localeParser.format(rawValue, numericOptions));
+				} else {
+					setDisplayValue('');
+				}
+			}
+			prevRawValueRef.current = rawValue;
+		}
+	}, [rawValue, numeric, numericOptions]);
+
+	// Determine the value to display in the TextInput
+	const fieldValue = numeric
+		? displayValue
+		: (rawValue != null ? String(rawValue) : '');
+
 	const fieldError = getNestedValue(errors, name);
 	const fieldTouched = getNestedValue(touched, name);
 
@@ -53,19 +89,60 @@ export const FormInput = ({
 		}
 	};
 
-	const handleChangeText = (text) => {
-		// Support nested paths like "products[0].rate"
+	// Update form value helper
+	const updateFormValue = useCallback((value) => {
 		if (name.includes('.') || name.includes('[')) {
-			// Use setValues with nested path helper for array fields
-			setValues(prev => setNestedValue(prev, name, text));
+			setValues(prev => setNestedValue(prev, name, value));
 		} else {
-			setFieldValue(name, text);
+			setFieldValue(name, value);
 		}
+	}, [name, setFieldValue, setValues]);
+
+	const handleChangeText = (text) => {
+		if (numeric) {
+			// For numeric fields, validate partial input and maintain dual state
+			if (text === '' || localeParser.isValidPartial(text)) {
+				// Update display value
+				setDisplayValue(text);
+
+				// Parse to number and update form state
+				if (text === '') {
+					updateFormValue(null);
+				} else {
+					const parsed = localeParser.parse(text);
+					// Only update form value if we got a valid number
+					// (partial inputs like "123," will parse to NaN, which is fine during typing)
+					if (!isNaN(parsed)) {
+						updateFormValue(parsed);
+					}
+				}
+			}
+			// If invalid partial, ignore the input (don't update state)
+		} else {
+			// Original string handling for non-numeric fields
+			updateFormValue(text);
+		}
+
 		// Clear server error when user starts typing
 		if (serverError) {
 			clearServerError(name);
 		}
 	};
+
+	// Handle blur for numeric fields - reformat the display value
+	const handleBlurNumeric = useCallback(() => {
+		if (numeric && displayValue) {
+			const parsed = localeParser.parse(displayValue);
+			if (!isNaN(parsed)) {
+				// Reformat to clean localized display
+				setDisplayValue(localeParser.format(parsed, numericOptions));
+				// Ensure form value is in sync
+				updateFormValue(parsed);
+			} else if (displayValue.trim() === '') {
+				updateFormValue(null);
+			}
+		}
+	}, [numeric, displayValue, numericOptions, updateFormValue]);
 
 	// Inline layout: horizontal row with label left, input right
 	if (inline) {
@@ -89,6 +166,7 @@ export const FormInput = ({
 								if (currentFocusedField === name) {
 									setCurrentFocusedField(null);
 								}
+								handleBlurNumeric();
 								handleBlur(name);
 							}}
 							value={fieldValue}
@@ -98,6 +176,7 @@ export const FormInput = ({
 							placeholder={placeholder}
 							cursorColor={colors.PRIMARY}
 							selectionColor={colors.SECONDARY}
+							keyboardType={numeric ? 'decimal-pad' : props.keyboardType}
 							{...props}
 						/>
 						{unit && <Text style={styles.inlineUnitLabel}>{unit}</Text>}
@@ -122,6 +201,12 @@ export const FormInput = ({
 				isFocused && styles.inputFocused,
 				hasError && styles.inputError,
 				unit && styles.inputWithUnit,
+				multiline && {
+					height: undefined,
+					minHeight: 46 * numberOfLines,
+					textAlignVertical: 'top',
+					paddingTop: 12,
+				},
 				inputStyle,
 			]}
 			placeholderTextColor={colors.PRIMARY_LIGHT}
@@ -130,18 +215,27 @@ export const FormInput = ({
 				if (currentFocusedField === name) {
 					setCurrentFocusedField(null);
 				}
+				handleBlurNumeric();
 				handleBlur(name);
 			}}
 			value={fieldValue}
 			onChangeText={handleChangeText}
 			onSubmitEditing={handleSubmitEditing}
-			returnKeyType={isLast ? "done" : "next"}
+			returnKeyType={multiline ? "default" : (isLast ? "done" : "next")}
 			placeholder={placeholder}
 			cursorColor={colors.PRIMARY}
 			selectionColor={colors.SECONDARY}
+			multiline={multiline}
+			numberOfLines={numberOfLines}
+			keyboardType={numeric ? 'decimal-pad' : props.keyboardType}
 			{...props}
 		/>
 	);
+
+	// Show character count when maxLength is set (works for both single and multiline)
+	const shouldShowCharCount = maxLength != null;
+	// Use Array.from to count grapheme clusters for better international support
+	const charCount = fieldValue ? [...fieldValue].length : 0;
 
 	return (
 		<View style={[styles.inputContainer, containerStyle]}>
@@ -154,6 +248,14 @@ export const FormInput = ({
 				</View>
 			) : (
 				inputElement
+			)}
+			{shouldShowCharCount && (
+				<Text style={[
+					styles.characterCount,
+					charCount > maxLength && styles.characterCountError
+				]}>
+					{charCount}/{maxLength}
+				</Text>
 			)}
 			{serverError && (
 				<Text style={styles.errorText}>{t(serverError)}</Text>

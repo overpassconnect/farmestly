@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApi } from '../../../hooks/useApi';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useGlobalContext } from '../../context/GlobalContextProvider';
 import { useUnits } from '../../../providers/UnitsProvider';
@@ -122,11 +122,11 @@ const CultivationScreen = () => {
 	const getStatusInfo = () => {
 		switch (cultivation.status) {
 			case 'active':
-				return { color: colors.SECONDARY, text: 'Active', icon: '🌱' };
+				return { color: colors.SECONDARY, text: 'Active', icon: require('../../../assets/icons/sow.png') };
 			case 'completed':
-				return { color: '#4CAF50', text: 'Completed', icon: '✅' };
+				return { color: '#4CAF50', text: 'Completed', icon: require('../../../assets/icons/check_brown.png') };
 			default:
-				return { color: colors.PRIMARY_LIGHT, text: cultivation.status, icon: '❓' };
+				return { color: colors.PRIMARY_LIGHT, text: cultivation.status, icon: require('../../../assets/icons/cultivation.png') };
 		}
 	};
 
@@ -153,7 +153,7 @@ const CultivationScreen = () => {
 					</View>
 
 					<View style={styles.statusContainer}>
-						<Text style={styles.statusIcon}>{statusInfo.icon}</Text>
+						<Image source={statusInfo.icon} style={styles.statusIcon} />
 						<Text style={[styles.statusText, { color: statusInfo.color }]}>
 							{statusInfo.text}
 						</Text>
@@ -192,7 +192,7 @@ const CultivationScreen = () => {
 						{/* Cultivation Start */}
 						<View style={styles.timelineItem}>
 							<View style={styles.timelineIcon}>
-								<Text style={styles.timelineIconText}>🌱</Text>
+								<Image source={require('../../../assets/icons/sow.png')} style={styles.timelineIconImage} />
 							</View>
 							<View style={styles.timelineContent}>
 								<Text style={styles.timelineTitle}>Cultivation Started</Text>
@@ -219,7 +219,7 @@ const CultivationScreen = () => {
 							timelineJobs.map((job, index) => (
 								<View key={job._id} style={styles.timelineItem}>
 									<View style={styles.timelineIcon}>
-										<Text style={styles.timelineIconText}>📋</Text>
+										<Image source={config.JOB_TYPE_ICONS[job.jobType] || config.JOB_TYPE_ICONS.custom} style={styles.timelineIconImage} />
 									</View>
 									<View style={styles.timelineContent}>
 										<Text style={styles.timelineTitle}>
@@ -251,7 +251,7 @@ const CultivationScreen = () => {
 						{cultivation.endTime && (
 							<View style={styles.timelineItem}>
 								<View style={styles.timelineIcon}>
-									<Text style={styles.timelineIconText}>🌾</Text>
+									<Image source={require('../../../assets/icons/harvest.png')} style={styles.timelineIconImage} />
 								</View>
 								<View style={styles.timelineContent}>
 									<Text style={styles.timelineTitle}>Cultivation Ended</Text>
@@ -353,7 +353,8 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 	},
 	statusIcon: {
-		fontSize: 24,
+		width: 24,
+		height: 24,
 		marginRight: 8,
 	},
 	statusText: {
@@ -437,6 +438,10 @@ const styles = StyleSheet.create({
 	},
 	timelineIconText: {
 		fontSize: 20,
+	},
+	timelineIconImage: {
+		width: 20,
+		height: 20,
 	},
 	timelineContent: {
 		flex: 1,

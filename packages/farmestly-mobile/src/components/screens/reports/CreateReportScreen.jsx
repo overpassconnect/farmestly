@@ -47,9 +47,9 @@ const DATE_RANGE_IDS = [
 
 // Delivery method options - labels will be translated in component
 const DELIVERY_METHOD_IDS = [
-	{ id: 'both' },
+	{ id: 'download' },
 	{ id: 'email' },
-	{ id: 'download' }
+	{ id: 'both' }
 ];
 
 const CreateReportScreen = () => {
@@ -64,7 +64,7 @@ const CreateReportScreen = () => {
 	// Component state
 	const [selectedReportType, setSelectedReportType] = useState('all');
 	const [selectedDateRange, setSelectedDateRange] = useState('all');
-	const [selectedDelivery, setSelectedDelivery] = useState('both');
+	const [selectedDelivery, setSelectedDelivery] = useState('download');
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [currentJobId, setCurrentJobId] = useState(null);
 	const [latestReport, setLatestReport] = useState(null);
@@ -78,8 +78,10 @@ const CreateReportScreen = () => {
 	const [isPrecheckLoading, setIsPrecheckLoading] = useState(false);
 	const [precheckResult, setPrecheckResult] = useState({ canEmail: true, canDownload: true, recordCount: null });
 
-	// Email is already in account from GlobalContext - no need to fetch
+	// Email verification status
 	const hasEmail = !!account?.email;
+	const emailVerified = account?.emailVerified === true;
+	const hasVerifiedEmail = hasEmail && emailVerified;
 
 	// Create translated report types
 	const REPORT_TYPES = REPORT_TYPE_IDS.map(type => ({
@@ -116,8 +118,8 @@ const CreateReportScreen = () => {
 		setLoadingLatest(true);
 		const result = await api('/report/latest');
 
-		if (result.ok && result.report) {
-			setLatestReport(result.report);
+		if (result.ok && result.data?.report) {
+			setLatestReport(result.data.report);
 		} else {
 			setLatestReport(null);
 		}
@@ -212,19 +214,20 @@ const CreateReportScreen = () => {
 
 		const result = await api(`/report/precheck?${params.toString()}`);
 
-		if (result.ok) {
-			setPrecheckResult(result);
+		if (result.ok && result.data) {
+			const payload = result.data;
+			setPrecheckResult(payload);
 
 			// Auto-adjust selected delivery if current selection is not available
-			if (selectedDelivery === 'both' && (!result.canEmail || !result.canDownload)) {
-				if (result.canEmail) {
+			if (selectedDelivery === 'both' && (!payload.canEmail || !payload.canDownload)) {
+				if (payload.canEmail) {
 					setSelectedDelivery('email');
-				} else if (result.canDownload) {
+				} else if (payload.canDownload) {
 					setSelectedDelivery('download');
 				}
-			} else if (selectedDelivery === 'email' && !result.canEmail && result.canDownload) {
+			} else if (selectedDelivery === 'email' && !payload.canEmail && payload.canDownload) {
 				setSelectedDelivery('download');
-			} else if (selectedDelivery === 'download' && !result.canDownload && result.canEmail) {
+			} else if (selectedDelivery === 'download' && !payload.canDownload && payload.canEmail) {
 				setSelectedDelivery('email');
 			}
 		} else {
@@ -248,8 +251,8 @@ const CreateReportScreen = () => {
 
 	// Generate report
 	const handleGenerateReport = async () => {
-		// Check if user has email - redirect to add it if not
-		if (hasEmail === false) {
+		// Check if user has email - redirect to add it if not (only for email-based delivery)
+		if (hasEmail === false && selectedDelivery !== 'download') {
 			navigation.navigate('EmailSettingsScreen', {
 				returnTo: 'CreateReportScreen',
 				returnParams: {
@@ -283,11 +286,11 @@ const CreateReportScreen = () => {
 			body: JSON.stringify(reportData)
 		});
 
-		if (result.ok && result.jobId) {
+		if (result.ok && result.data?.jobId) {
 			// Store job ID and start polling
-			setCurrentJobId(result.jobId);
+			setCurrentJobId(result.data.jobId);
 
-			ReportPollingService.start(result.jobId, api, {
+			ReportPollingService.start(result.data.jobId, api, {
 				onProgress: (status) => {
 					// Optional: could update UI with status
 					// For now, just keep the spinner showing
@@ -548,10 +551,11 @@ const CreateReportScreen = () => {
 
 						{DELIVERY_METHODS.map((method) => {
 							let isDisabled = false;
-							if (method.id === 'both' && (!precheckResult.canEmail || !precheckResult.canDownload)) {
-								isDisabled = true;
-							} else if (method.id === 'email' && !precheckResult.canEmail) {
-								isDisabled = true;
+							// Disable email options if email is not verified
+							if (method.id === 'both') {
+								isDisabled = !hasVerifiedEmail || !precheckResult.canEmail || !precheckResult.canDownload;
+							} else if (method.id === 'email') {
+								isDisabled = !hasVerifiedEmail || !precheckResult.canEmail;
 							} else if (method.id === 'download' && !precheckResult.canDownload) {
 								isDisabled = true;
 							}
@@ -566,6 +570,18 @@ const CreateReportScreen = () => {
 								/>
 							);
 						})}
+
+						{/* Email verification info text */}
+						{!hasEmail && (
+							<Text style={styles.emailInfoText}>
+								Add an email address in Settings to enable email delivery.
+							</Text>
+						)}
+						{hasEmail && !emailVerified && (
+							<Text style={styles.emailInfoText}>
+								Email delivery requires a verified email address.
+							</Text>
+						)}
 					</View>
 
 					{/* Button Container */}
@@ -772,6 +788,13 @@ const styles = StyleSheet.create({
 		width: '100%',
 		marginTop: 24,
 		gap: 12,
+	},
+	emailInfoText: {
+		fontSize: 12,
+		fontFamily: 'Geologica-Regular',
+		color: colors.PRIMARY_LIGHT,
+		marginTop: 8,
+		marginLeft: 36,
 	},
 });
 

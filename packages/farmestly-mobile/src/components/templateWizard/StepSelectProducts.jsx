@@ -114,7 +114,7 @@ const StepSelectProducts = ({ state, updateState, onNext, onBack }) => {
 											style={styles.rateInput}
 											value={productRate}
 											onChangeText={(text) => handleUpdateRate(product._id, text)}
-											keyboardType="numeric"
+											keyboardType="decimal-pad"
 											placeholder={
 												product.defaultRate
 													? formatProductRateValue(product.defaultRate, product.isVolume)?.toString()

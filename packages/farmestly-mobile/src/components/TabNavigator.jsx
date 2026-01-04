@@ -5,7 +5,7 @@ import { useGlobalContext } from './context/GlobalContextProvider';
 import colors from '../globals/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { useLanguage } from './context/LanguageContextProvider';
+import { useLocale } from '../providers/LocaleProvider';
 
 import TabHome from './tabs/TabHome';
 import TabJobs from './tabs/TabJobs';
@@ -23,12 +23,12 @@ const TabNavigator = () => {
 
 	const { hasAnyActiveRecording } = useGlobalContext();
 
-	const { currentLanguage } = useLanguage();
+	const { locale } = useLocale();
 
 	return (
 		<View style={{ flex: 1 }}>
 			<Tab.Navigator
-				key={currentLanguage}
+				key={locale}
 				initialRouteName="Home"
 				screenOptions={({ route: tabRoute }) => ({
 					lazy: false,
