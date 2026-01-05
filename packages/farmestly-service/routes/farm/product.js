@@ -6,7 +6,8 @@ const { ok, fail } = require('../../utils/response');
 const { validate } = require('../../middleware/validation');
 const { ObjectId } = require('mongodb');
 
-const VALID_PRODUCT_TYPES = ['herbicide', 'fungicide', 'insecticide', 'adjuvant', 'fertilizer', 'other'];
+// Valid 2-letter product type codes
+const VALID_TYPE_CODES = ['HB', 'FU', 'IN', 'AC', 'AT', 'PG', 'NE', 'RO', 'RE', 'BA', 'OT', 'MO', 'DE', 'EL', 'ST', 'XX'];
 
 const productRules = [
 	body('name')
@@ -14,10 +15,35 @@ const productRules = [
 		.notEmpty().withMessage('product.nameEmpty')
 		.trim(),
 	body('type')
-		.exists({ checkNull: true }).withMessage('product.typeRequired')
-		.isIn(VALID_PRODUCT_TYPES).withMessage('product.typeInvalid'),
+		.exists({ checkNull: true }).withMessage('product.typeRequired'),
+	body('type.code')
+		.exists({ checkNull: true }).withMessage('product.typeCodeRequired')
+		.isIn(VALID_TYPE_CODES).withMessage('product.typeCodeInvalid')
+		.trim(),
+	body('type.name')
+		.exists({ checkNull: true }).withMessage('product.typeNameRequired')
+		.isLength({ min: 1, max: 50 }).withMessage('product.typeNameInvalid')
+		.trim(),
 	body('activeIngredient')
+		.optional({ nullable: true }),
+	body('activeIngredient.provider')
 		.optional({ nullable: true, checkFalsy: true })
+		.isIn(['ingredientseu']).withMessage('product.activeIngredientProviderInvalid')
+		.trim(),
+	body('activeIngredient.id')
+		.optional({ nullable: true, checkFalsy: true })
+		.isInt({ min: 1 }).withMessage('product.activeIngredientIdInvalid'),
+	body('activeIngredient.code')
+		.optional({ nullable: true, checkFalsy: true })
+		.isLength({ min: 2, max: 2 }).withMessage('product.activeIngredientCodeInvalid')
+		.trim(),
+	body('activeIngredient.name')
+		.optional({ nullable: true, checkFalsy: true })
+		.isLength({ max: 200 }).withMessage('product.activeIngredientNameTooLong')
+		.trim(),
+	body('activeIngredient.cas')
+		.optional({ nullable: true, checkFalsy: true })
+		.matches(/^\d{2,7}-\d{2}-\d$/).withMessage('product.activeIngredientCasInvalid')
 		.trim(),
 	body('defaultRate')
 		.optional({ nullable: true, checkFalsy: true })
@@ -48,12 +74,28 @@ router.post('/add', validate(productRules), async (req, res) => {
 			return res.status(401).json(fail('SIGNED_OUT'));
 		}
 
+		// Build activeIngredient object if provided
+		let activeIngredient = null;
+		const ai = req.body.activeIngredient;
+		if (ai && (ai.name || ai.id)) {
+			activeIngredient = {
+				provider: ai.provider?.trim() || null,   // 'ingredientseu' or null for custom
+				id: ai.id ? Number(ai.id) : null,        // EU substance_id
+				code: ai.code?.trim() || null,           // 2-letter category code
+				name: ai.name?.trim() || null,           // Substance name
+				cas: ai.cas?.trim() || null              // CAS number
+			};
+		}
+
 		const productDoc = {
 			_id: new ObjectId(),
 			accountId: account._id,
 			name: req.body.name.trim(),
-			type: req.body.type,
-			activeIngredient: req.body.activeIngredient || null,
+			type: {
+				code: req.body.type.code.trim(),
+				name: req.body.type.name.trim()
+			},
+			activeIngredient,
 			defaultRate: req.body.defaultRate ? Number(req.body.defaultRate) : null,
 			isVolume: req.body.isVolume ?? true,
 			rei: req.body.rei ? Number(req.body.rei) : null,
@@ -90,10 +132,26 @@ router.post('/update', validate([
 			return res.status(401).json(fail('SIGNED_OUT'));
 		}
 
+		// Build activeIngredient object if provided
+		let activeIngredient = null;
+		const ai = req.body.activeIngredient;
+		if (ai && (ai.name || ai.id)) {
+			activeIngredient = {
+				provider: ai.provider?.trim() || null,   // 'ingredientseu' or null for custom
+				id: ai.id ? Number(ai.id) : null,        // EU substance_id
+				code: ai.code?.trim() || null,           // 2-letter category code
+				name: ai.name?.trim() || null,           // Substance name
+				cas: ai.cas?.trim() || null              // CAS number
+			};
+		}
+
 		const updateFields = {
 			name: req.body.name.trim(),
-			type: req.body.type,
-			activeIngredient: req.body.activeIngredient || null,
+			type: {
+				code: req.body.type.code.trim(),
+				name: req.body.type.name.trim()
+			},
+			activeIngredient,
 			defaultRate: req.body.defaultRate ? Number(req.body.defaultRate) : null,
 			isVolume: req.body.isVolume ?? true,
 			rei: req.body.rei ? Number(req.body.rei) : null,

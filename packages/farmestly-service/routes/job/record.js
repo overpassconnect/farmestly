@@ -44,45 +44,48 @@ const resolveCultivationId = async (accountId, cultivationRef) => {
 };
 
 // Helper function to update equipment powerOnTime (seconds) in separate collections
-const updateEquipmentPowerOnTime = async (accountId, job, elapsedTimeMs) => {
+const updateEquipmentPowerOnTime = async (req, accountId, job, elapsedTimeMs) => {
 	const deltaSeconds = Math.floor(elapsedTimeMs / 1000);  // Convert ms to seconds
-
 	if (deltaSeconds === 0) return;
 
-	const updates = [];
+	const accountOid = new ObjectId(accountId);
 
-	// Use embedded equipment IDs from the job document to update separate collections
 	if (job.machine?.id && ObjectId.isValid(job.machine.id)) {
-		updates.push(
-			getDb().collection('Machines').updateOne(
-				{ _id: new ObjectId(job.machine.id), accountId: new ObjectId(accountId) },
-				{ $inc: { powerOnTime: deltaSeconds } }
-			)
+		const result = await getDb().collection('Machines').findOneAndUpdate(
+			{ _id: new ObjectId(job.machine.id), accountId: accountOid },
+			{ $inc: { powerOnTime: deltaSeconds } },
+			{ returnDocument: 'after', projection: { _id: 1, powerOnTime: 1 } }
 		);
+		if (result) {
+			req.trackUpdate('machines', { _id: result._id, powerOnTime: result.powerOnTime });
+		}
 	}
 
 	if (job.attachment?.id && ObjectId.isValid(job.attachment.id)) {
-		updates.push(
-			getDb().collection('Attachments').updateOne(
-				{ _id: new ObjectId(job.attachment.id), accountId: new ObjectId(accountId) },
-				{ $inc: { powerOnTime: deltaSeconds } }
-			)
+		const result = await getDb().collection('Attachments').findOneAndUpdate(
+			{ _id: new ObjectId(job.attachment.id), accountId: accountOid },
+			{ $inc: { powerOnTime: deltaSeconds } },
+			{ returnDocument: 'after', projection: { _id: 1, powerOnTime: 1 } }
 		);
+		if (result) {
+			req.trackUpdate('attachments', { _id: result._id, powerOnTime: result.powerOnTime });
+		}
 	}
 
 	if (job.tool?.id && ObjectId.isValid(job.tool.id)) {
-		updates.push(
-			getDb().collection('Tools').updateOne(
-				{ _id: new ObjectId(job.tool.id), accountId: new ObjectId(accountId) },
-				{ $inc: { powerOnTime: deltaSeconds } }
-			)
+		const result = await getDb().collection('Tools').findOneAndUpdate(
+			{ _id: new ObjectId(job.tool.id), accountId: accountOid },
+			{ $inc: { powerOnTime: deltaSeconds } },
+			{ returnDocument: 'after', projection: { _id: 1, powerOnTime: 1 } }
 		);
-	}
-
-	if (updates.length > 0) {
-		await Promise.all(updates);
+		if (result) {
+			req.trackUpdate('tools', { _id: result._id, powerOnTime: result.powerOnTime });
+		}
 	}
 };
+
+// EPPO code regex: 5-6 uppercase alphanumeric characters
+const EPPO_CODE_REGEX = /^[0-9A-Z]{5,6}$/;
 
 // Validation rules for POST /job/record
 const createJobRules = [
@@ -98,7 +101,10 @@ const createJobRules = [
 	body('elapsedTime')
 		.isInt({ min: 0 }).withMessage('job.elapsedTimeInvalid'),
 	body('status')
-		.equals('completed').withMessage('job.statusMustBeCompleted')
+		.equals('completed').withMessage('job.statusMustBeCompleted'),
+	body('data.sow.eppoCode')
+		.optional({ nullable: true })
+		.matches(EPPO_CODE_REGEX).withMessage('job.eppoCodeInvalid')
 ];
 
 // POST /job/record - Create a new job record
@@ -188,8 +194,10 @@ router.post('/record', validate(createJobRules), async (req, res) => {
 				variety: cultData.variety || '',
 				// From data.sow (seed-specific)
 				eppoCode: sowData.eppoCode || null,
+				preferredName: sowData.preferredName || null,
 				lotNumber: sowData.lotNumber || null,
 				seedManufacturer: sowData.seedManufacturer || null,
+				bbchStage: 0,
 				// Lifecycle
 				status: 'active',
 				startTime: jobDoc.startedAt,
@@ -200,26 +208,27 @@ router.post('/record', validate(createJobRules), async (req, res) => {
 
 			await getDb().collection('cultivations').insertOne(cultivation);
 
-			// Update field's currentCultivation in Fields collection
-			const fieldUpdate = {
-				currentCultivation: {
-					id: cultivation._id.toString(),
-					crop: cultivation.crop,
-					variety: cultivation.variety,
-					eppoCode: cultivation.eppoCode,
-					startTime: cultivation.startTime
-				}
+			// Build currentCultivation for field
+			const currentCultivation = {
+				id: cultivation._id.toString(),
+				crop: cultivation.crop,
+				variety: cultivation.variety,
+				eppoCode: cultivation.eppoCode,
+				preferredName: cultivation.preferredName,
+				bbchStage: cultivation.bbchStage,
+				startTime: cultivation.startTime
 			};
 
 			await getDb().collection('Fields').updateOne(
-				{
-					_id: new ObjectId(body.fieldId),
-					accountId: account._id
-				},
-				{
-					$set: { currentCultivation: fieldUpdate.currentCultivation }
-				}
+				{ _id: new ObjectId(body.fieldId), accountId: account._id },
+				{ $set: { currentCultivation } }
 			);
+
+			// Track for incremental sync
+			req.trackUpdate('fields', { _id: body.fieldId, currentCultivation });
+
+			// Keep fieldUpdate for backwards compatibility
+			const fieldUpdate = { currentCultivation };
 
 			// Set cultivation reference in job (minimal)
 			jobDoc.cultivation = {
@@ -235,6 +244,7 @@ router.post('/record', validate(createJobRules), async (req, res) => {
 				crop: cultivation.crop,
 				variety: cultivation.variety,
 				eppoCode: cultivation.eppoCode,
+				preferredName: cultivation.preferredName,
 				lotNumber: cultivation.lotNumber,
 				seedManufacturer: cultivation.seedManufacturer,
 				status: cultivation.status,
@@ -277,16 +287,14 @@ router.post('/record', validate(createJobRules), async (req, res) => {
 				if (cultUpdateResult) {
 					// Clear field's currentCultivation in Fields collection
 					await getDb().collection('Fields').updateOne(
-						{
-							_id: new ObjectId(body.fieldId),
-							accountId: account._id
-						},
-						{
-							$set: { currentCultivation: null }
-						}
+						{ _id: new ObjectId(body.fieldId), accountId: account._id },
+						{ $set: { currentCultivation: null } }
 					);
 
-					response.cultivation = cultUpdateResult;
+					// Track for incremental sync
+					req.trackUpdate('fields', { _id: body.fieldId, currentCultivation: null });
+
+					response.cultivation = 'completed';
 					response.fieldUpdate = { currentCultivation: null };
 				}
 			}
@@ -314,10 +322,10 @@ router.post('/record', validate(createJobRules), async (req, res) => {
 
 		// Update equipment powerOnTimeMs
 		if (jobDoc.elapsedTime > 0) {
-			await updateEquipmentPowerOnTime(account._id, jobDoc, jobDoc.elapsedTime);
+			await updateEquipmentPowerOnTime(req, account._id, jobDoc, jobDoc.elapsedTime);
 		}
 
-		res.json(ok(response));
+		res.json(ok(response, req.updates));
 	} catch (err) {
 		console.error('Error creating job record:', err);
 		res.status(500).send(fail('INTERNAL_ERROR'));
@@ -326,7 +334,7 @@ router.post('/record', validate(createJobRules), async (req, res) => {
 
 // POST /job/record/update - Update an existing job record
 router.post('/record/update', validate([
-	body('_id').exists().withMessage('job.idRequired')
+	body('_id').exists().withMessage('job.idRequired').isMongoId().withMessage('job.invalidId')
 ]), async (req, res) => {
 	try {
 		const body = req.body;
@@ -424,7 +432,7 @@ router.post('/record/update', validate([
 			if (ObjectId.isValid(cultId)) {
 				if (willBeFinal) {
 					// false → true: Complete the cultivation
-					const cultivation = await getDb().collection('cultivations').findOneAndUpdate(
+					await getDb().collection('cultivations').findOneAndUpdate(
 						{ _id: new ObjectId(cultId), accountId: account._id },
 						{
 							$set: {
@@ -432,18 +440,17 @@ router.post('/record/update', validate([
 								endTime: updatedJob.endedAt || new Date(),
 								endJobId: updatedJob._id
 							}
-						},
-						{ returnDocument: 'after' }
+						}
 					);
 
 					// Clear field's currentCultivation in Fields collection
 					await getDb().collection('Fields').updateOne(
-						{
-							_id: new ObjectId(existingJob.fieldId),
-							accountId: account._id
-						},
+						{ _id: new ObjectId(existingJob.fieldId), accountId: account._id },
 						{ $set: { currentCultivation: null } }
 					);
+
+					// Track for incremental sync
+					req.trackUpdate('fields', { _id: existingJob.fieldId, currentCultivation: null });
 
 					// Return cultivation as 'completed' per contract
 					response.cultivation = 'completed';
@@ -461,27 +468,27 @@ router.post('/record/update', validate([
 
 					if (cultivation) {
 						// Restore field's currentCultivation
-						const fieldUpdate = {
-							currentCultivation: {
-								id: cultivation._id.toString(),
-								crop: cultivation.crop,
-								variety: cultivation.variety,
-								eppoCode: cultivation.eppoCode,
-								startTime: cultivation.startTime
-							}
+						const currentCultivation = {
+							id: cultivation._id.toString(),
+							crop: cultivation.crop,
+							variety: cultivation.variety,
+							eppoCode: cultivation.eppoCode,
+							preferredName: cultivation.preferredName || null,
+							bbchStage: cultivation.bbchStage || 0,
+							startTime: cultivation.startTime
 						};
 
 						await getDb().collection('Fields').updateOne(
-							{
-								_id: new ObjectId(existingJob.fieldId),
-								accountId: account._id
-							},
-							{ $set: { currentCultivation: fieldUpdate.currentCultivation } }
+							{ _id: new ObjectId(existingJob.fieldId), accountId: account._id },
+							{ $set: { currentCultivation } }
 						);
+
+						// Track for incremental sync
+						req.trackUpdate('fields', { _id: existingJob.fieldId, currentCultivation });
 
 						// Return cultivation as 'reopened' per contract
 						response.cultivation = 'reopened';
-						response.fieldUpdate = fieldUpdate;
+						response.fieldUpdate = { currentCultivation };
 					}
 				}
 			}
@@ -489,10 +496,10 @@ router.post('/record/update', validate([
 
 		// Update equipment powerOnTimeMs with delta
 		if (elapsedTimeDelta !== 0) {
-			await updateEquipmentPowerOnTime(account._id, existingJob, elapsedTimeDelta);
+			await updateEquipmentPowerOnTime(req, account._id, existingJob, elapsedTimeDelta);
 		}
 
-		res.json(ok(response));
+		res.json(ok(response, req.updates));
 	} catch (err) {
 		console.error('Error updating job record:', err);
 		res.status(500).send(fail('INTERNAL_ERROR'));
@@ -555,12 +562,12 @@ router.delete('/record/:_id', validate([
 
 				// Clear field's currentCultivation in Fields collection
 				await getDb().collection('Fields').updateOne(
-					{
-						_id: new ObjectId(job.fieldId),
-						accountId: account._id
-					},
+					{ _id: new ObjectId(job.fieldId), accountId: account._id },
 					{ $set: { currentCultivation: null } }
 				);
+
+				// Track for incremental sync
+				req.trackUpdate('fields', { _id: job.fieldId, currentCultivation: null });
 
 				response.cultivation = 'deleted';
 				response.fieldUpdate = { currentCultivation: null };
@@ -583,39 +590,39 @@ router.delete('/record/:_id', validate([
 
 				if (cultivation) {
 					// Restore field's currentCultivation
-					const fieldUpdate = {
-						currentCultivation: {
-							id: cultivation._id.toString(),
-							crop: cultivation.crop,
-							variety: cultivation.variety,
-							eppoCode: cultivation.eppoCode,
-							startTime: cultivation.startTime
-						}
+					const currentCultivation = {
+						id: cultivation._id.toString(),
+						crop: cultivation.crop,
+						variety: cultivation.variety,
+						eppoCode: cultivation.eppoCode,
+						preferredName: cultivation.preferredName || null,
+						bbchStage: cultivation.bbchStage || 0,
+						startTime: cultivation.startTime
 					};
 
 					await getDb().collection('Fields').updateOne(
-						{
-							_id: new ObjectId(job.fieldId),
-							accountId: account._id
-						},
-						{ $set: { currentCultivation: fieldUpdate.currentCultivation } }
+						{ _id: new ObjectId(job.fieldId), accountId: account._id },
+						{ $set: { currentCultivation } }
 					);
 
+					// Track for incremental sync
+					req.trackUpdate('fields', { _id: job.fieldId, currentCultivation });
+
 					response.cultivation = 'reopened';
-					response.fieldUpdate = fieldUpdate;
+					response.fieldUpdate = { currentCultivation };
 				}
 			}
 		}
 
 		// Adjust powerOnTimeMs (decrement)
 		if (job.elapsedTime > 0) {
-			await updateEquipmentPowerOnTime(account._id, job, -job.elapsedTime);
+			await updateEquipmentPowerOnTime(req, account._id, job, -job.elapsedTime);
 		}
 
 		// Delete the job
 		await getDb().collection('jobs').deleteOne({ _id: job._id });
 
-		res.json(ok(response));
+		res.json(ok(response, req.updates));
 	} catch (err) {
 		console.error('Error deleting job record:', err);
 		res.status(500).send(fail('INTERNAL_ERROR'));

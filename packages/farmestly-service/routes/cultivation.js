@@ -150,6 +150,80 @@ router.post('/end', (req, res) => {
 		});
 });
 
+// Update BBCH growth stage for a cultivation
+router.post('/bbch', async (req, res) => {
+	try {
+		const { cultivationId, stage } = req.body;
+
+		if (typeof stage !== 'number' || stage < 0 || stage > 99) {
+			return res.status(400).send(fail('INVALID_STAGE'));
+		}
+
+		if (!cultivationId || !ObjectId.isValid(cultivationId)) {
+			return res.status(400).send(fail('INVALID_CULTIVATION_ID'));
+		}
+
+		const account = await getDb().collection('Accounts').findOne({
+			_id: new ObjectId(req.session.accountId)
+		});
+
+		if (!account) {
+			return res.status(401).send(fail('SIGNED_OUT'));
+		}
+
+		const now = new Date();
+
+		// Aggregation pipeline update:
+		// - Sets current stage
+		// - Appends to history
+		// - Silently caps history at 500 entries (replaces last if at limit)
+		const result = await getDb().collection('cultivations').findOneAndUpdate(
+			{
+				_id: new ObjectId(cultivationId),
+				accountId: account._id,
+				status: 'active'
+			},
+			[
+				{
+					$set: {
+						bbchStage: stage,
+						bbchHistory: {
+							$cond: {
+								if: { $gte: [{ $size: { $ifNull: ['$bbchHistory', []] } }, 500] },
+								then: {
+									$concatArrays: [
+										{ $slice: ['$bbchHistory', 499] },
+										[{ stage: stage, timestamp: now }]
+									]
+								},
+								else: {
+									$concatArrays: [
+										{ $ifNull: ['$bbchHistory', []] },
+										[{ stage: stage, timestamp: now }]
+									]
+								}
+							}
+						}
+					}
+				}
+			],
+			{ returnDocument: 'after' }
+		);
+
+		if (!result) {
+			return res.status(404).send(fail('CULTIVATION_NOT_FOUND'));
+		}
+
+		res.json(ok({
+			bbchStage: result.bbchStage,
+			bbchHistory: result.bbchHistory
+		}));
+	} catch (err) {
+		console.error('Error updating BBCH:', err);
+		res.status(500).send(fail('INTERNAL_ERROR'));
+	}
+});
+
 // Get cultivation history for a field
 router.get('/field/:fieldId', (req, res) => {
 	// Find account from session

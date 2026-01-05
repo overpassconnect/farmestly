@@ -3,6 +3,7 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const sessionHandler = require('../middleware/sessionHandler');
+const trackUpdates = require('../middleware/trackUpdates');
 
 // ============================================
 // PUBLIC ROUTES (no auth)
@@ -22,6 +23,7 @@ router.use('/report/download', require('./report/download'));
 // PROTECTED ROUTES (auth required)
 // ============================================
 router.use(sessionHandler);
+router.use(trackUpdates);
 
 // Account
 router.use('/getAccountData', require('./account/getData'));
@@ -47,7 +49,7 @@ router.use('/jobTemplates', require('./job/jobTemplate')); // Alias for GET /job
 // Other
 router.use('/cultivation', require('./cultivation'));
 router.use('/report', require('./report'));
-router.use('/eppo', require('./eppo'));
+router.use('/data', require('./data'));
 
 // Settings
 router.use('/settings/email', require('./settings/email'));
