@@ -109,20 +109,20 @@ ios/*.xcodeproj/project.xcworkspace/xcuserdata/
 *.dSYM
 
 # Android
-android/build/
-android/app/build/
-android/.gradle/
-android/local.properties
-android/app/debug/
-android/app/release/
-android/gradle.properties
-android/app/*.keystore
-!android/app/debug.keystore
+**/android/build/
+**/android/app/build/
+**/android/.gradle/
+**/android/local.properties
+**/android/app/debug/
+**/android/app/release/
+**/android/gradle.properties
+**/android/app/*.keystore
+!**/android/app/debug.keystore
 *.jks
 *.keystore
-android/.idea/
+**/android/.idea/
 *.iml
-android/app/.cxx/
+**/android/app/.cxx/
 .cxx/
 .cxx
 
