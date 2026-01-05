@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import colors from '../../../globals/colors';
 import { formStyles } from '../form/formStyles';
 
@@ -9,7 +9,7 @@ import { formStyles } from '../form/formStyles';
  * @param {Object} props
  * @param {string} props.label - The label text displayed above the options
  * @param {string} props.description - Optional description text below the label
- * @param {Array} props.options - Array of option objects with { key, label } structure
+ * @param {Array} props.options - Array of option objects with { key, label, icon? } structure
  * @param {string} props.value - The currently selected option key
  * @param {Function} props.onChange - Callback when selection changes, receives option key
  * @param {boolean} props.allowNoneSelected - If true, allows toggling selection off (default: true)
@@ -51,6 +51,16 @@ const OptionPicker = ({
 							onPress={() => handleOptionPress(option.key)}
 							activeOpacity={0.7}
 						>
+							{option.icon && (
+								<Image
+									source={option.icon}
+									style={[
+										styles.optionIcon,
+										isSelected && styles.optionIconSelected
+									]}
+									resizeMode="contain"
+								/>
+							)}
 							<Text style={[
 								styles.optionText,
 								isSelected && styles.optionTextSelected
@@ -98,6 +108,15 @@ const styles = StyleSheet.create({
 	optionTextSelected: {
 		fontFamily: 'Geologica-Medium',
 		color: colors.PRIMARY
+	},
+	optionIcon: {
+		width: 24,
+		height: 24,
+		marginBottom: 6,
+		opacity: 0.6
+	},
+	optionIconSelected: {
+		opacity: 1
 	}
 });
 

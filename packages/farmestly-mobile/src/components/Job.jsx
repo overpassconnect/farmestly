@@ -32,7 +32,7 @@ const Job = ({
 	}, [forFirstSetup, polygonId, tmpFirstSetup, setTmpFirstSetup]);
 
 	return (
-		<View style={styles.wizardPageContainer}>
+		<View style={styles.container}>
 			<ScrollView
 				bounces={false}
 				bouncesZoom={false}
@@ -101,21 +101,8 @@ const styles = StyleSheet.create({
 	},
 	container: {
 		flex: 1,
-		// padding: 34,
-		// flexWrap: 'wrap'
-		// justifyContent: 'center',
-		// alignItems: 'center',
-		// justifyContent: 'flex-start',
-	},
-	wizard: {
-
-	},
-	wizardPageContainer: {
-		// backgroundColor: 'grey',
 		width: width,
-		// padding: 16
-		// marginRight: 10
-		padding: 34
+		padding: 34,
 	},
 	buttonText: {
 

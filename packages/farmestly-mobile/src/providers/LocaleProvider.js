@@ -12,6 +12,7 @@ import React, {
 	useCallback,
 	useState,
 	useMemo,
+	useRef,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { localeParser } from '../globals/locale/parser';
@@ -38,6 +39,11 @@ export const LocaleProvider = ({ children }) => {
 	const [isInitialized, setIsInitialized] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 
+	// Track the last applied account locale to prevent re-applying on initial load
+	const lastAppliedAccountLocaleRef = useRef(null);
+	// Track if we used a local source (localStorage/device) - server shouldn't override user's local choice
+	const usedLocalSourceRef = useRef(false);
+
 	// Initialize locale on mount
 	useEffect(() => {
 		const initializeLocale = async () => {
@@ -55,12 +61,16 @@ export const LocaleProvider = ({ children }) => {
 			) {
 				targetLocale = account.metadata.locale;
 				localeSource = 'account.metadata';
+				// Mark this as already applied so we don't re-apply in the sync effect
+				lastAppliedAccountLocaleRef.current = account.metadata.locale;
 			} else {
 				// Priority 2: Local storage
 				const storedLocale = await Storage.getItem(LOCALE_STORAGE_KEY);
 				if (storedLocale && SUPPORTED_LOCALES[storedLocale]) {
 					targetLocale = storedLocale;
 					localeSource = 'localStorage';
+					// User has a local preference - don't let server override on initial load
+					usedLocalSourceRef.current = true;
 				} else {
 					// Priority 3: Device locale
 					targetLocale = deviceLocale;
@@ -89,24 +99,50 @@ export const LocaleProvider = ({ children }) => {
 		initializeLocale();
 	}, []); // Only run once on mount
 
-	// Sync when account.metadata.locale changes (e.g., from server sync)
+	// Sync when account.metadata.locale changes from server (after initialization)
+	// This only triggers if the server sends a NEW locale different from what we already applied
 	useEffect(() => {
 		if (!isInitialized) return;
 
 		const accountLocale = account?.metadata?.locale;
-		if (
-			accountLocale &&
-			SUPPORTED_LOCALES[accountLocale] &&
-			accountLocale !== locale
-		) {
-			localeParser.setLocale(accountLocale);
-			setLocaleState(accountLocale);
 
-			const i18nCode = getI18nCode(accountLocale);
-			i18nInstance.changeLanguage(i18nCode);
-
-			Storage.setItem(LOCALE_STORAGE_KEY, accountLocale);
+		// Skip if no account locale or unsupported
+		if (!accountLocale || !SUPPORTED_LOCALES[accountLocale]) {
+			return;
 		}
+
+		// Skip if same as current locale
+		if (accountLocale === locale) {
+			return;
+		}
+
+		// Skip if we already applied this account locale
+		if (accountLocale === lastAppliedAccountLocaleRef.current) {
+			return;
+		}
+
+		// Skip if we used a local source on init - this is likely the initial account data arriving
+		// after we already loaded from localStorage. The user's local choice should win.
+		// Clear the flag after first check so future server changes CAN apply.
+		if (usedLocalSourceRef.current) {
+			console.log('[LocaleProvider] Ignoring initial account locale, using local preference:', locale);
+			usedLocalSourceRef.current = false;
+			lastAppliedAccountLocaleRef.current = accountLocale;
+			return;
+		}
+
+		console.log('[LocaleProvider] Account locale changed from server:', accountLocale);
+
+		// Update the ref to prevent re-applying
+		lastAppliedAccountLocaleRef.current = accountLocale;
+
+		localeParser.setLocale(accountLocale);
+		setLocaleState(accountLocale);
+
+		const i18nCode = getI18nCode(accountLocale);
+		i18nInstance.changeLanguage(i18nCode);
+
+		Storage.setItem(LOCALE_STORAGE_KEY, accountLocale);
 	}, [account?.metadata?.locale, isInitialized, locale, i18nInstance]);
 
 	/**
@@ -119,9 +155,13 @@ export const LocaleProvider = ({ children }) => {
 				return;
 			}
 
+			console.log('Changing locale to:', newLocale);
 			setIsLoading(true);
 
 			try {
+				// Update ref to prevent the sync effect from re-applying
+				lastAppliedAccountLocaleRef.current = newLocale;
+
 				// Update singleton
 				localeParser.setLocale(newLocale);
 				setLocaleState(newLocale);

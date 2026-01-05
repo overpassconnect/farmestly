@@ -5,6 +5,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import colors from '../../../globals/colors';
 import PrimaryButton from '../../ui/core/PrimaryButton';
+import { ButtonStack } from '../../ui/core/ButtonGroup';
 import { useGlobalContext } from '../../context/GlobalContextProvider';
 import { FormikHelper, FormInput } from '../../ui/form';
 import { resolveEquipment, buildCultivation } from '../../../utils/jobHelpers';

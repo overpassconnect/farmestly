@@ -44,7 +44,7 @@ const EppoSearchSheet = ({ onSelect, onCancel }) => {
 		<SearchableListSheet
 			isBottomSheet={true}
 			isOnline={!isOffline}
-			endpoint="/eppo/search"
+			endpoint="/data/eppo/search"
 			responseDataKey="results"
 			transformResults={transformResults}
 			keyExtractor={(item) => item.eppocode}

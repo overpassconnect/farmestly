@@ -53,105 +53,46 @@ export const GlobalContextProvider = ({ children }) => {
 	}, [activeRecordings]);
 
 	// ============================================
-	// AUTO-PERSIST HELPERS
+	// CACHE HELPERS (simplified - no validation beyond JSON parse)
 	// ============================================
-	const persistToCache = useCallback(async (data) => {
-		if (data.account && data.farm) {
-			try {
-				await Storage.setItem(CACHE_KEY, JSON.stringify(data));
-			} catch (err) {
-				console.error('Failed to persist to cache:', err);
-			}
+	const saveToCache = useCallback(async (data) => {
+		try {
+			const json = JSON.stringify(data);
+			await Storage.setItem(CACHE_KEY, json);
+			console.log('[GlobalContext] Cache saved successfully');
+			return true;
+		} catch (err) {
+			console.error('[GlobalContext] Cache save failed:', err);
+			return false;
 		}
 	}, []);
 
-	// ============================================
-	// SETTERS WITH AUTO-PERSIST
-	// ============================================
-	const setAccount = useCallback((data) => {
-		setAccountRaw(data);
-		persistToCache({ account: data, farm });
-	}, [farm, persistToCache]);
-
-	const setFarm = useCallback((data) => {
-		setFarmRaw(data);
-		persistToCache({ account, farm: data });
-	}, [account, persistToCache]);
-
-	// ============================================
-	// DATA LOADING (INTERNAL)
-	// ============================================
-	const loadFromCacheInternal = useCallback(async () => {
+	const loadCache = useCallback(async () => {
 		try {
 			const json = await Storage.getItem(CACHE_KEY);
-			return json ? JSON.parse(json) : null;
+			console.log('[GlobalContext] Cache read:', json ? `${json.length} chars` : 'empty');
+			if (!json) return null;
+			const data = JSON.parse(json);
+			console.log('[GlobalContext] Cache parsed, has account:', !!data?.account);
+			return data;
 		} catch (err) {
-			console.error('Failed to load from cache:', err);
+			console.error('[GlobalContext] Cache load failed:', err);
 			return null;
 		}
 	}, []);
 
-	const loadData = useCallback(async () => {
-		setIsLoading(true);
-		setError(null);
-
-		// Try server first
-		const serverData = await fetchFromServer();
-
-		// NO_SESSION returned - no valid session, cache already cleared
-		if (serverData?.noSession) {
-			setAccountRaw(null);
-			setFarmRaw(null);
-			setDataSource(null);
-			setIsLoading(false);
-			return null;
+	const clearCache = useCallback(async () => {
+		try {
+			await Storage.removeItem(CACHE_KEY);
+			console.log('[GlobalContext] Cache cleared');
+		} catch (err) {
+			console.error('[GlobalContext] Cache clear failed:', err);
 		}
+	}, []);
 
-		if (serverData) {
-			setAccountRaw(serverData.account);
-			setFarmRaw(serverData.farm);
-			setDataSource('server');
-			setIsOffline(false);
-			await persistToCache(serverData);
-
-			// Initialize JobService with field IDs
-			if (serverData.farm?.fields) {
-				const fieldIds = serverData.farm.fields.map(f => f._id);
-				JobService.initialize(fieldIds)
-					.catch(err => console.error('[GlobalContext] JobService initialization failed:', err));
-			}
-
-			setIsLoading(false);
-			return serverData;
-		}
-
-		// Fallback to cache only if server request failed (network error/timeout)
-		// NOT if server explicitly said NO_SESSION (that case is handled above)
-		const cachedData = await loadFromCacheInternal();
-		if (cachedData) {
-			setAccountRaw(cachedData.account);
-			setFarmRaw(cachedData.farm);
-			setDataSource('cache');
-			setIsOffline(true);
-
-			// Try to initialize JobService even from cached data
-			if (cachedData.farm?.fields) {
-				const fieldIds = cachedData.farm.fields.map(f => f._id);
-				JobService.initialize(fieldIds)
-					.catch(err => console.error('[GlobalContext] JobService initialization failed:', err));
-			}
-
-			setIsLoading(false);
-			return cachedData;
-		}
-
-		// No data available
-		console.error('No server or cache data available');
-
-		setIsLoading(false);
-		return null;
-	}, [persistToCache, loadFromCacheInternal]);
-
+	// ============================================
+	// SERVER COMMUNICATION
+	// ============================================
 	const fetchFromServer = useCallback(async () => {
 		try {
 			const res = await Promise.race([
@@ -161,52 +102,108 @@ export const GlobalContextProvider = ({ children }) => {
 			const data = await res.json();
 
 			if (data.HEADERS?.STATUS_CODE === 'OK' && data.PAYLOAD) {
-				const serverData = {
+				return {
 					account: data.PAYLOAD.account,
-					farm: data.PAYLOAD.farm || {}
+					farm: data.PAYLOAD.farm || null
 				};
-
-				if (serverData.farm) {
-					Storage.setItem('@FarmDataCache', JSON.stringify(serverData.farm))
-						.catch(err => console.error('Failed to cache farmData:', err));
-				}
-
-				return serverData;
 			}
 
-			// NO_SESSION means no valid session exists on server
-			// Clear any stale cached data and cookie to prevent session leakage
 			if (data.HEADERS?.STATUS_CODE === 'NO_SESSION') {
 				await clearCookie();
-				await Storage.removeItem(CACHE_KEY);
-				await Storage.removeItem('@FarmDataCache');
+				// Don't clear cache here - preserve offline data
+				// Cache is only cleared on explicit logout
 				return { noSession: true };
 			}
 
-			console.error('Invalid response or unsuccessful request:', data);
 			return null;
 		} catch (err) {
-			console.error('Failed to fetch from server:', err);
+			console.error('[GlobalContext] Server fetch failed:', err.message);
 			return null;
 		}
 	}, []);
 
+	// ============================================
+	// DATA LOADING (simplified flow)
+	// ============================================
+	const applyData = useCallback((data, source) => {
+		setAccountRaw(data.account);
+		setFarmRaw(data.farm);
+		setDataSource(source);
+		setIsOffline(source === 'cache');
+
+		// Initialize JobService if we have fields
+		const fields = data.farm?.fields;
+		if (fields?.length) {
+			JobService.initialize(fields.map(f => f._id)).catch(err =>
+				console.error('[GlobalContext] JobService init failed:', err)
+			);
+		}
+	}, []);
+
+	const loadData = useCallback(async () => {
+		console.log('[GlobalContext] loadData started');
+		setIsLoading(true);
+		setError(null);
+
+		// Check network state before attempting server fetch
+		const netState = await NetInfo.fetch();
+		const hasConnection = netState.isConnected && netState.isInternetReachable !== false;
+
+		// Step 1: Try server (only if we might have connectivity)
+		const serverData = hasConnection ? await fetchFromServer() : null;
+		console.log('[GlobalContext] Server result:', serverData?.noSession ? 'NO_SESSION' : serverData?.account ? 'OK' : 'FAILED');
+
+		// Explicit logout from server
+		if (serverData?.noSession) {
+			setAccountRaw(null);
+			setFarmRaw(null);
+			setDataSource(null);
+			setIsOffline(false);
+			setIsLoading(false);
+			return null;
+		}
+
+		// Server returned data
+		if (serverData?.account) {
+			applyData(serverData, 'server');
+			await saveToCache(serverData);
+			setIsLoading(false);
+			return serverData;
+		}
+
+		// Step 2: Server failed, try cache
+		console.log('[GlobalContext] Server failed, trying cache...');
+		const cached = await loadCache();
+
+		if (cached?.account) {
+			console.log('[GlobalContext] Using cached data');
+			applyData(cached, 'cache');
+			setIsLoading(false);
+			return cached;
+		}
+
+		// Step 3: Nothing available
+		console.log('[GlobalContext] No data available');
+		setAccountRaw(null);
+		setFarmRaw(null);
+		setDataSource(null);
+		setIsOffline(true);
+		setIsLoading(false);
+		return null;
+	}, [fetchFromServer, saveToCache, loadCache, applyData]);
 
 	const refresh = useCallback(async () => {
 		const serverData = await fetchFromServer();
-		if (serverData) {
-			setAccountRaw(serverData.account);
-			setFarmRaw(serverData.farm);
-			setDataSource('server');
-			setIsOffline(false);
-			await persistToCache(serverData);
+		if (serverData?.account) {
+			applyData(serverData, 'server');
+			await saveToCache(serverData);
 			return true;
 		}
 		return false;
-	}, [fetchFromServer, persistToCache]);
+	}, [fetchFromServer, saveToCache, applyData]);
 
 	// ============================================
-	// CONNECTIVITY
+	// CONNECTIVITY POLLING
 	// ============================================
 	const checkConnectivity = useCallback(async () => {
 		try {
@@ -216,8 +213,7 @@ export const GlobalContextProvider = ({ children }) => {
 			]);
 			if (res.ok && isOffline) {
 				setIsOffline(false);
-				refresh(); // Sync when back online
-				// JobService syncs automatically, no manual trigger needed
+				refresh();
 			}
 		} catch {
 			if (!isOffline) setIsOffline(true);
@@ -240,25 +236,42 @@ export const GlobalContextProvider = ({ children }) => {
 	}, [checkConnectivity]);
 
 	// ============================================
+	// STATE SETTERS (no auto-persist)
+	// ============================================
+	const setAccount = useCallback((data) => {
+		if (typeof data === 'function') {
+			setAccountRaw(prev => data(prev));
+		} else {
+			setAccountRaw(data);
+		}
+	}, []);
+
+	const setFarm = useCallback((data) => {
+		if (typeof data === 'function') {
+			setFarmRaw(prev => data(prev));
+		} else {
+			setFarmRaw(data);
+		}
+	}, []);
+
+	// ============================================
 	// PARTIAL UPDATE HELPERS
 	// ============================================
 	const updatePreferences = useCallback((key, value) => {
-		setAccount(prev => ({
+		setAccountRaw(prev => ({
 			...prev,
 			preferences: { ...prev?.preferences, [key]: value }
 		}));
-		// Fire-and-forget server sync
 		api('/settings/preferences', {
 			method: 'POST',
 			body: JSON.stringify({ [key]: value })
 		}).catch(() => { });
-	}, [setAccount]);
+	}, []);
 
 	const updateAccountField = useCallback((key, value) => {
-		setAccount(prev => ({ ...prev, [key]: value }));
-	}, [setAccount]);
+		setAccountRaw(prev => ({ ...prev, [key]: value }));
+	}, []);
 
-	// Setter for local preferences with auto-persist
 	const setLocalPreference = useCallback((key, value) => {
 		setLocalPreferencesRaw(prev => {
 			const next = { ...prev, [key]: value };
@@ -267,122 +280,127 @@ export const GlobalContextProvider = ({ children }) => {
 		});
 	}, []);
 
-	// Listen to JobService - only update on meaningful changes
+	// ============================================
+	// UPDATES MERGE PROTOCOL (from JobService sync)
+	// ============================================
+	const mergeWithProtocol = useCallback((target, source) => {
+		const result = { ...target };
+		Object.keys(source).forEach(key => {
+			const sourceVal = source[key];
+			const targetVal = target[key];
+
+			if (sourceVal === null) {
+				result[key] = null;
+			} else if (Array.isArray(sourceVal)) {
+				result[key] = sourceVal;
+			} else if (
+				sourceVal !== null &&
+				typeof sourceVal === 'object' &&
+				!Array.isArray(sourceVal) &&
+				targetVal !== null &&
+				typeof targetVal === 'object' &&
+				!Array.isArray(targetVal)
+			) {
+				result[key] = mergeWithProtocol(targetVal, sourceVal);
+			} else {
+				result[key] = sourceVal;
+			}
+		});
+		return result;
+	}, []);
+
+	// Listen to JobService events
 	useEffect(() => {
 		const removeListener = JobService.on((event, data) => {
-			if (event === 'change') {
-				// Reload all active recordings when there's a change
-				setActiveRecordings(JobService.getAllActive());
-			} else if (event === 'tick') {
-				// Update tick data but check if meaningful change first
-				setActiveRecordings(prev => {
-					const recordings = JobService.getAllActive();
-					const prevKeys = Object.keys(prev);
-					const newKeys = Object.keys(recordings);
+			switch (event) {
+				case 'change':
+					setActiveRecordings(JobService.getAllActive());
+					break;
 
-					// Recording added or removed
-					if (prevKeys.length !== newKeys.length) {
-						return recordings;
-					}
+				case 'tick':
+					setActiveRecordings(prev => {
+						const recordings = JobService.getAllActive();
+						const prevKeys = Object.keys(prev);
+						const newKeys = Object.keys(recordings);
 
-					// Check if any status changed (ignore elapsedMs)
-					const statusChanged = newKeys.some(key => {
-						const prevRec = prev[key];
-						const newRec = recordings[key];
-						if (!prevRec) return true;
-						return prevRec.status !== newRec.status;
+						if (prevKeys.length !== newKeys.length) {
+							return recordings;
+						}
+
+						const statusChanged = newKeys.some(key => {
+							const prevRec = prev[key];
+							const newRec = recordings[key];
+							if (!prevRec) return true;
+							return prevRec.status !== newRec.status;
+						});
+
+						return statusChanged ? recordings : prev;
 					});
+					break;
 
-					// Return prev reference if no meaningful change
-					return statusChanged ? recordings : prev;
-				});
-			} else if (event === 'cultivationResolved') {
-				// Update field.currentCultivation.id from temp to real ObjectId
-				console.log('[GlobalContextProvider] Handling cultivationResolved event:', data);
-				setFarmData(prev => ({
-					...prev,
-					fields: prev.fields.map(f =>
-						f._id === data.fieldId && f.currentCultivation?.id === data.tempId
-							? {
-								...f,
-								currentCultivation: {
-									...f.currentCultivation,
-									id: data.realId  // Update from temp_* to real ObjectId
-								}
-							}
-							: f
-					)
-				}));
+				case 'sync':
+					// Handle incremental updates from server after job sync
+					const { updates } = data || {};
+					if (!updates || typeof updates !== 'object') break;
+
+					setFarmRaw(prev => {
+						if (!prev) return prev;
+
+						const next = { ...prev };
+						Object.entries(updates).forEach(([collection, docs]) => {
+							if (!Array.isArray(docs) || !prev[collection]) return;
+
+							next[collection] = prev[collection].map(item => {
+								const update = docs.find(d => String(d._id) === String(item._id));
+								if (!update) return item;
+								return mergeWithProtocol(item, update);
+							});
+						});
+
+						return next;
+					});
+					break;
+
+				default:
+					break;
 			}
 		});
 
-		return () => {
-			removeListener();
-		};
-	}, []);
+		return () => removeListener();
+	}, [mergeWithProtocol]);
 
 	// ============================================
-	// BACKWARDS COMPATIBILITY LAYER
+	// BACKWARDS COMPATIBILITY
 	// ============================================
-	// Expose old API for components not yet migrated
 	const farmData = farm;
 	const metadata = account;
-
-	const setFarmData = useCallback((data) => {
-		if (typeof data === 'function') {
-			setFarm(prev => data(prev));
-		} else {
-			setFarm(data);
-		}
-	}, [setFarm]);
-
-	const setMetadata = useCallback((data) => {
-		if (typeof data === 'function') {
-			setAccount(prev => data(prev));
-		} else {
-			setAccount(data);
-		}
-	}, [setAccount]);
+	const setFarmData = setFarm;
+	const setMetadata = setAccount;
 
 	const loadFromServer = useCallback(async () => {
 		setIsLoading(true);
-		setError(null);
-
 		const serverData = await fetchFromServer();
-		if (serverData) {
-			setAccountRaw(serverData.account);
-			setFarmRaw(serverData.farm);
-			setDataSource('server');
-			setIsOffline(false);
-			await persistToCache(serverData);
+		if (serverData?.account) {
+			applyData(serverData, 'server');
+			await saveToCache(serverData);
 			setIsLoading(false);
-			// Return old format for backwards compatibility
-			return {
-				metadata: serverData.account,
-				content: { farmData: serverData.farm }
-			};
+			return { metadata: serverData.account, content: { farmData: serverData.farm } };
 		}
-
 		setIsLoading(false);
 		return null;
-	}, [fetchFromServer, persistToCache]);
+	}, [fetchFromServer, saveToCache, applyData]);
 
 	const loadFromCache = useCallback(async () => {
-		const data = await loadFromCacheInternal();
-		if (data) {
-			// Return old format for backwards compatibility
-			return {
-				metadata: data.account,
-				farmData: data.farm
-			};
+		const data = await loadCache();
+		if (data?.account) {
+			return { metadata: data.account, farmData: data.farm };
 		}
 		return null;
-	}, [loadFromCacheInternal]);
+	}, [loadCache]);
 
 	// ============================================
 	// COMPUTED VALUES
 	// ============================================
-	// Compute total area from fields (client-side calculation)
 	const totalArea = useMemo(() => {
 		if (!farm?.fields || farm.fields.length === 0) return 0;
 		return farm.fields.reduce((sum, field) => sum + (field.area || 0), 0);
@@ -416,8 +434,9 @@ export const GlobalContextProvider = ({ children }) => {
 		// Actions
 		loadData,
 		refresh,
+		clearCache,
 
-		// Backwards compatibility - OLD API (deprecated)
+		// Backwards compatibility (deprecated)
 		farmData,
 		metadata,
 		setFarmData,
@@ -426,7 +445,7 @@ export const GlobalContextProvider = ({ children }) => {
 		loadFromCache,
 		setIsOffline,
 
-		// Legacy state for backwards compatibility
+		// Legacy state
 		tmpFirstSetup,
 		setTmpFirstSetup,
 		isTimerVisible,
@@ -452,6 +471,7 @@ export const GlobalContextProvider = ({ children }) => {
 		dataSource,
 		loadData,
 		refresh,
+		clearCache,
 		farmData,
 		metadata,
 		setFarmData,

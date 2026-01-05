@@ -14,8 +14,18 @@ const TabInputs = () => {
 	const { farmData } = useGlobalContext();
 	const navigation = useNavigation();
 
-	// Helper function to get product type display name using i18n
+	// Guard against missing farmData (e.g., offline with no cache)
+	const products = farmData?.products || [];
+
+	// Helper function to get product type display name
+	// Handles both new { code, name } format and legacy string format
 	const getProductTypeDisplay = (type) => {
+		if (!type) return '';
+		// New format: { code, name }
+		if (typeof type === 'object' && type.name) {
+			return type.name;
+		}
+		// Legacy string format
 		const map = {
 			'herbicide': t('common:productTypes.herbicide'),
 			'fungicide': t('common:productTypes.fungicide'),
@@ -30,7 +40,7 @@ const TabInputs = () => {
 	// Products tab content
 	const ProductsTab = (
 		<View style={styles.tabContainer}>
-			{!farmData.products || farmData.products.length === 0 ? (
+			{products.length === 0 ? (
 				<View style={styles.emptyTextContainer}>
 					<Image
 						source={require('../../assets/icons/inputs_brown.png')}
@@ -46,7 +56,7 @@ const TabInputs = () => {
 					contentContainerStyle={styles.scrollContent}
 					showsVerticalScrollIndicator={true}
 				>
-					{farmData.products.map((product) => {
+					{products.map((product) => {
 						return (
 							<TouchableOpacity
 								key={'product-' + product.id}
@@ -63,7 +73,7 @@ const TabInputs = () => {
 									timeCount={null}
 									subTitle1={getProductTypeDisplay(product.type)}
 									title={product.name}
-									subTitle2={product.activeIngredient || product.notes}
+									subTitle2={product.activeIngredient?.name || product.activeIngredient || product.notes}
 									showChevron={true}
 								/>
 							</TouchableOpacity>

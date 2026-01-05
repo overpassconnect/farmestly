@@ -17,6 +17,7 @@ import { FormikHelper, FormInput, FormDropdown, formStyles } from '../../ui/form
 import { useUnits } from '../../../providers/UnitsProvider';
 import OptionPicker from '../../ui/core/OptionPicker';
 import SearchableListSheet from '../../ui/list/SearchableListSheet';
+import IngredientsEUSearchSheet, { PRODUCT_TYPE_CODES, getCategoryFilterFromType, transformToActiveIngredient } from '../../sheets/IngredientsEUSearchSheet';
 
 const BASE_URL = config.BASE_URL;
 const { width } = Dimensions.get('screen');
@@ -183,8 +184,8 @@ const EditEntityScreen = () => {
 				case 'product':
 					return {
 						name: '',
-						type: '',
-						activeIngredient: '',
+						type: null, // { code: '2-letter', name: 'type name' }
+						activeIngredient: null, // { provider, id, code, name, cas }
 						defaultRate: '',
 						isVolume: true, // default to liquid
 						rei: '',
@@ -237,17 +238,65 @@ const EditEntityScreen = () => {
 						powerOnTime: entity.powerOnTime ? formatValue(entity.powerOnTime, 'time')?.toString() : '',
 						notes: entity.notes || ''
 					};
-				case 'product':
+				case 'product': {
+					// Handle type migration: support old string format and new { code, name } format
+					let type = null;
+					if (entity.type) {
+						if (typeof entity.type === 'string') {
+							// Old string format: convert to new { code, name } format
+							const legacyTypeMap = {
+								'herbicide': PRODUCT_TYPE_CODES.HB,
+								'fungicide': PRODUCT_TYPE_CODES.FU,
+								'insecticide': PRODUCT_TYPE_CODES.IN,
+								'adjuvant': { code: 'XX', name: 'Adjuvant' },
+								'fertilizer': { code: 'XX', name: 'Fertilizer' },
+								'other': PRODUCT_TYPE_CODES.OT,
+							};
+							type = legacyTypeMap[entity.type] || { code: 'XX', name: entity.type };
+						} else {
+							// Already new format: { code, name }
+							type = entity.type;
+						}
+					}
+
+					// Handle activeIngredient migration: support old string format and new object format
+					// New schema: { provider, id, code, name, cas }
+					let activeIngredient = null;
+					if (entity.activeIngredient) {
+						if (typeof entity.activeIngredient === 'string') {
+							// Old string format: convert to new schema as custom entry
+							activeIngredient = {
+								provider: null,
+								id: null,
+								code: null,
+								name: entity.activeIngredient,
+								cas: null
+							};
+						} else if (entity.activeIngredient.provider !== undefined) {
+							// Already new format: { provider, id, code, name, cas }
+							activeIngredient = entity.activeIngredient;
+						} else if (entity.activeIngredient.code !== undefined) {
+							// Intermediate format: { code, name } - migrate to new schema
+							activeIngredient = {
+								provider: null,
+								id: null,
+								code: entity.activeIngredient.code,
+								name: entity.activeIngredient.name,
+								cas: null
+							};
+						}
+					}
 					return {
 						name: entity.name || '',
-						type: entity.type || '',
-						activeIngredient: entity.activeIngredient || '',
+						type,
+						activeIngredient,
 						defaultRate: entity.defaultRate ? formatProductRateValue(entity.defaultRate, entity.isVolume)?.toString() : '',
 						isVolume: entity.isVolume ?? true, // default to liquid
 						rei: entity.rei ? entity.rei.toString() : '',
 						phi: entity.phi ? entity.phi.toString() : '',
 						notes: entity.notes || ''
 					};
+				}
 				case 'jobTemplate':
 					return {
 						name: entity.name || '',
@@ -881,16 +930,21 @@ const EditEntityScreen = () => {
 				</>
 			);
 		} else if (entityType === 'product') {
+			// Product type items using new { code, name } format
 			const productTypeItems = useMemo(() => [
-				{ _id: 'herbicide', label: t('common:productTypes.herbicide'), description: t('common:productTypeDescriptions.herbicide') || 'Controls weeds and unwanted plants' },
-				{ _id: 'fungicide', label: t('common:productTypes.fungicide'), description: t('common:productTypeDescriptions.fungicide') || 'Controls fungal diseases' },
-				{ _id: 'insecticide', label: t('common:productTypes.insecticide'), description: t('common:productTypeDescriptions.insecticide') || 'Controls insects and pests' },
-				{ _id: 'adjuvant', label: t('common:productTypes.adjuvant'), description: t('common:productTypeDescriptions.adjuvant') || 'Enhances spray effectiveness' },
-				{ _id: 'fertilizer', label: t('common:productTypes.fertilizer'), description: t('common:productTypeDescriptions.fertilizer') || 'Provides plant nutrients' },
-				{ _id: 'other', label: t('common:productTypes.other'), description: t('common:productTypeDescriptions.other') || 'Other product types' }
+				{ code: 'HB', name: 'Herbicide', label: t('common:productTypes.herbicide'), description: t('common:productTypeDescriptions.herbicide') || 'Controls weeds and unwanted plants' },
+				{ code: 'FU', name: 'Fungicide', label: t('common:productTypes.fungicide'), description: t('common:productTypeDescriptions.fungicide') || 'Controls fungal diseases' },
+				{ code: 'IN', name: 'Insecticide', label: t('common:productTypes.insecticide'), description: t('common:productTypeDescriptions.insecticide') || 'Controls insects and pests' },
+				{ code: 'AC', name: 'Acaricide', label: t('common:productTypes.acaricide') || 'Acaricide', description: t('common:productTypeDescriptions.acaricide') || 'Controls mites and ticks' },
+				{ code: 'PG', name: 'Plant growth regulator', label: t('common:productTypes.pgr') || 'Plant Growth Regulator', description: t('common:productTypeDescriptions.pgr') || 'Regulates plant growth' },
+				{ code: 'NE', name: 'Nematicide', label: t('common:productTypes.nematicide') || 'Nematicide', description: t('common:productTypeDescriptions.nematicide') || 'Controls nematodes' },
+				{ code: 'MO', name: 'Molluscicide', label: t('common:productTypes.molluscicide') || 'Molluscicide', description: t('common:productTypeDescriptions.molluscicide') || 'Controls slugs and snails' },
+				{ code: 'OT', name: 'Other', label: t('common:productTypes.other'), description: t('common:productTypeDescriptions.other') || 'Other product types' },
+				{ code: 'XX', name: 'Custom', label: t('common:productTypes.custom') || 'Custom', description: t('common:productTypeDescriptions.custom') || 'User-defined product type' }
 			], [t]);
 
-			const selectedProductType = productTypeItems.find(item => item._id === values.type);
+			// Find selected type - compare by code
+			const selectedProductType = productTypeItems.find(item => item.code === values.type?.code);
 
 			const openProductTypeSheet = () => {
 				openBottomSheet(
@@ -900,13 +954,14 @@ const EditEntityScreen = () => {
 						endpoint={null}
 						title={t('common:labels.productType')}
 						searchPlaceholder={t('common:placeholders.searchProductType') || 'Search product type...'}
-						searchKeys={['label']}
+						searchKeys={['label', 'name']}
 						onSelect={(item) => {
-							setFieldValue('type', item._id);
+							// Store as { code, name } format
+							setFieldValue('type', { code: item.code, name: item.name });
 							closeBottomSheet();
 						}}
 						onCancel={closeBottomSheet}
-						keyExtractor={(item) => item._id}
+						keyExtractor={(item) => item.code}
 						renderItem={({ item, onSelect }) => (
 							<ListItem
 								title={item.label}
@@ -914,7 +969,7 @@ const EditEntityScreen = () => {
 								simple={true}
 								showChevron={false}
 								showRadio={true}
-								isSelected={values.type === item._id}
+								isSelected={values.type?.code === item.code}
 								onPress={() => onSelect(item)}
 							/>
 						)}
@@ -957,21 +1012,50 @@ const EditEntityScreen = () => {
 						</Pressable>
 					</View>
 
-					<FormInput
-						name="activeIngredient"
-						label={t('common:labels.activeIngredient')}
-						description={t('common:descriptions.activeIngredient')}
-						placeholder="π.χ. Glyphosate 360g/L"
-						invalidMessage=""
-					/>
+					{/* Active Ingredient - using IngredientsEUSearchSheet */}
+					<View style={formStyles.inputContainer}>
+						<Text style={formStyles.formLabel}>{t('common:labels.activeIngredient')}:</Text>
+						<Text style={formStyles.formDescription}>{t('common:descriptions.activeIngredient')}</Text>
+						<Pressable
+							style={styles.dropdownField}
+							onPress={() => {
+								// Get category filter based on selected product type (new { code, name } format)
+								const categoryFilter = getCategoryFilterFromType(values.type);
+								openBottomSheet(
+									<IngredientsEUSearchSheet
+										categoryFilter={categoryFilter}
+										onSelect={(item) => {
+											// Transform to new schema: { provider, id, code, name, cas }
+											const ingredientData = transformToActiveIngredient(item);
+											setFieldValue('activeIngredient', ingredientData);
+										}}
+										onCancel={closeBottomSheet}
+									/>,
+									{
+										snapPoints: ['100%'],
+										enablePanDownToClose: true,
+										index: 0
+									}
+								);
+							}}
+						>
+							<Text style={[
+								styles.dropdownFieldText,
+								!values.activeIngredient && styles.dropdownFieldPlaceholder
+							]}>
+								{values.activeIngredient?.name || t('common:placeholders.searchActiveIngredient') || 'Search or enter active ingredient...'}
+							</Text>
+							<Text style={styles.dropdownChevron}>▼</Text>
+						</Pressable>
+					</View>
 
 					{/* Product Type Toggle */}
 					<OptionPicker
-						label="Product Form"
-						description="Select whether this product is a liquid or solid"
+						label={t('common:labels.productForm')}
+						description={t('common:descriptions.productForm')}
 						options={[
-							{ key: 'liquid', label: `Liquid (${symbol('volume')})` },
-							{ key: 'solid', label: `Solid (${symbol('mass')})` }
+							{ key: 'liquid', label: `${t('common:productForms.liquid') || 'Liquid'} (${symbol('volume')})`, icon: require('../../../assets/icons/productliquid_brown.png') },
+							{ key: 'solid', label: `${t('common:productForms.solid') || 'Solid'} (${symbol('mass')})`, icon: require('../../../assets/icons/productsolid_brown.png') }
 						]}
 						value={values.isVolume ? 'liquid' : 'solid'}
 						onChange={(value) => setFieldValue('isVolume', value === 'liquid')}
@@ -1266,13 +1350,6 @@ const styles = StyleSheet.create({
 		paddingBottom: 40,
 		flexGrow: 1,
 		backgroundColor: 'white',
-	},
-	wizardPageContainer: {
-		width: width,
-		// padding: 34,
-		paddingBottom: 0,
-		flex: 1,
-		backgroundColor: 'white'
 	},
 	titleContainer: {
 		marginBottom: 10

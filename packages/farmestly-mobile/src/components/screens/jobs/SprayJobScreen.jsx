@@ -216,8 +216,8 @@ const SprayFormContent = ({
 				<ListItem
 					icon={require('../../../assets/icons/tool.png')}
 					title={item.name}
-					subTitle1={item.type}
-					subTitle2={item.activeIngredient}
+					subTitle1={item.type?.name || item.type}
+					subTitle2={item.activeIngredient?.name || item.activeIngredient}
 					showChevron={true}
 				/>
 			</TouchableOpacity>
@@ -226,7 +226,7 @@ const SprayFormContent = ({
 		const content = (
 			<SearchableListSheet
 				localData={farmData.products || []}
-				searchKeys={['name', 'type', 'activeIngredient']}
+				searchKeys={['name', 'type.name', 'type', 'activeIngredient.name', 'activeIngredient']}
 				searchPlaceholder={t('screens:sprayJob.searchProducts')}
 				title={t('screens:sprayJob.selectProductSheet')}
 				onSelect={handleSelectProduct}

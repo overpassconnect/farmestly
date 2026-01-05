@@ -220,6 +220,7 @@ const FieldGroupsScreen = () => {
 					text="+ Add New Field"
 					onPress={handleAddField}
 					fullWidth
+					variant='primaryOutline'
 				/>
 			</View>
 

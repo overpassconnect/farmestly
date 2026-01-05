@@ -100,7 +100,7 @@ const StepSelectProducts = ({ state, updateState, onNext, onBack }) => {
 									<View style={styles.productInfo}>
 										<Text style={styles.productName}>{product.name}</Text>
 										<Text style={styles.productDetails}>
-											{product.type} • {product.activeIngredient || 'No active ingredient'}
+											{product.type?.name || product.type} • {product.activeIngredient?.name || product.activeIngredient || 'No active ingredient'}
 										</Text>
 									</View>
 								</TouchableOpacity>

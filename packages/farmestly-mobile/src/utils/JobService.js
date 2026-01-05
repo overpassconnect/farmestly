@@ -92,10 +92,11 @@ const now = () => new Date().toISOString();
  *   reset(), cleanup(), on/addListener(callback)
  *
  * Events emitted via `on(callback)`:
- *   'ready'  : initialization finished (no data)
- *   'tick'   : timer tick, data = snapshot from getAllActive()
- *   'change' : lifecycle or load/reset events, payloads like { type, fieldId, recording/job }
- *   'sync'   : emitted when a job is marked synced; data = { jobId, serverJobId, status }
+ *   'ready'     : initialization finished (no data)
+ *   'tick'      : timer tick, data = snapshot from getAllActive()
+ *   'change'    : lifecycle or load/reset events, payloads like { type, fieldId, recording/job }
+ *   'jobSynced' : emitted when a job is marked synced; data = { jobId, serverJobId, status }
+ *   'sync'      : emitted when server returns UPDATES; data = { jobId, fieldId, updates }
  *
  * Notes:
  *  - Completed jobs are stored locally and remain in the pending queue until
@@ -871,6 +872,129 @@ class JobService {
 		return results;
 	}
 
+	/**
+	 * Get all cached jobs across all fields.
+	 *
+	 * Returns all jobs stored in the local cache, sorted by `endTime` descending.
+	 * Useful for offline mode to show previously recorded jobs.
+	 *
+	 * @param {Object} [options]
+	 * @param {number} [options.limit=100] - Maximum number of results to return.
+	 * @param {string|null} [options.search=null] - Optional search filter (matches template name or type).
+	 * @returns {Promise<Array<Object>>} Array of job objects from the cache.
+	 */
+	async getAllCachedJobs(options = {}) {
+		await this._ensureInit();
+		const { limit = 100, search = null } = options;
+
+		// Collect all unique job IDs from the index
+		const allJobIds = new Set();
+		this._index.byField.forEach(jobIds => {
+			jobIds.forEach(id => allJobIds.add(id));
+		});
+
+		if (allJobIds.size === 0) return [];
+
+		const jobs = await this._batchLoadCache(Array.from(allJobIds));
+		let results = jobs.filter(j => j !== null);
+
+		// Filter by search query
+		if (search) {
+			const lowerSearch = search.toLowerCase();
+			results = results.filter(j => {
+				const templateName = j.template?.name?.toLowerCase() || '';
+				const jobType = (j.type || j.jobType || '').toLowerCase();
+				return templateName.includes(lowerSearch) || jobType.includes(lowerSearch);
+			});
+		}
+
+		// Sort by endedAt/endTime descending
+		results.sort((a, b) => new Date(b.endedAt || b.endTime) - new Date(a.endedAt || a.endTime));
+
+		// Limit
+		if (limit) {
+			results = results.slice(0, limit);
+		}
+
+		return results;
+	}
+
+	/**
+	 * Update a local (non-synced) job.
+	 *
+	 * This allows editing jobs that haven't been synced to the server yet.
+	 * The updates are merged into the existing job and saved to local storage.
+	 * When the job eventually syncs, it will include these updates.
+	 *
+	 * @param {string} jobId - The local job ID (not server _id).
+	 * @param {Object} updates - Object with fields to update.
+	 * @returns {Promise<Object|null>} The updated job or null if not found.
+	 */
+	async updateJob(jobId, updates) {
+		await this._ensureInit();
+
+		const key = `${this._prefix}job_${jobId}`;
+		try {
+			const json = await Storage.getItem(key);
+			if (!json) {
+				console.warn('[JobService] Job not found for update:', jobId);
+				return null;
+			}
+
+			const job = JSON.parse(json);
+
+			// Don't allow updating already synced jobs via this method
+			if (job.syncStatus === 'synced' || job._id) {
+				console.warn('[JobService] Cannot update synced job via updateJob:', jobId);
+				return null;
+			}
+
+			// Merge updates into job
+			const updatedJob = { ...job, ...updates, updatedAt: new Date().toISOString() };
+
+			// Save back to storage
+			await Storage.setItem(key, JSON.stringify(updatedJob));
+
+			// Also update pending queue if job is there
+			const pendingJson = await Storage.getItem(this._pendingKey);
+			if (pendingJson) {
+				const pending = JSON.parse(pendingJson);
+				const idx = pending.findIndex(p => p.id === jobId);
+				if (idx !== -1) {
+					pending[idx] = { ...pending[idx], ...updates };
+					await Storage.setItem(this._pendingKey, JSON.stringify(pending));
+				}
+			}
+
+			this._emit('change', { type: 'jobUpdated', jobId, job: updatedJob });
+
+			return updatedJob;
+		} catch (err) {
+			console.error('[JobService] Failed to update job:', err);
+			return null;
+		}
+	}
+
+	/**
+	 * Get a single job by ID from local cache.
+	 *
+	 * @param {string} jobId - The job ID.
+	 * @returns {Promise<Object|null>} The job or null if not found.
+	 */
+	async getJob(jobId) {
+		await this._ensureInit();
+
+		const key = `${this._prefix}job_${jobId}`;
+		try {
+			const json = await Storage.getItem(key);
+			if (!json) return null;
+			return JSON.parse(json);
+		} catch (err) {
+			console.error('[JobService] Failed to get job:', err);
+			return null;
+		}
+	}
+
 	// ============================================================
 	// PUBLIC API: EVENTS
 	// ============================================================
@@ -1172,7 +1296,7 @@ class JobService {
 			if (serverJobId) job.serverJobId = serverJobId;
 
 			await Storage.setItem(key, JSON.stringify(job));
-			this._emit('sync', { jobId, serverJobId, status: 'synced' });
+			this._emit('jobSynced', { jobId, serverJobId, status: 'synced' });
 		} catch (err) {
 			console.error('[JobService] Failed to mark synced:', err);
 		}
@@ -1378,19 +1502,13 @@ class JobService {
 						await this._removePending(job.id);
 						await this._markSynced(job.id, result.serverJobId);
 
-						// Emit cultivation resolution event for sow jobs with temp cultivation IDs
-						if (job.type === 'sow' && job.cultivation?.id?.startsWith('temp_') && result.serverJob?.cultivation?._id) {
-							console.log('[JobService] Emitting cultivationResolved event:', {
-								tempId: job.cultivation.id,
-								realId: result.serverJob.cultivation._id,
-								fieldId: job.fieldId
-							});
-							this._emit('cultivationResolved', {
-								tempId: job.cultivation.id,
-								realId: result.serverJob.cultivation._id,
+						// Emit sync event with updates if present (guard against malformed responses)
+						if (result.updates && typeof result.updates === 'object' && Object.keys(result.updates).length > 0) {
+							console.log('[JobService] Emitting sync event with updates:', Object.keys(result.updates));
+							this._emit('sync', {
+								jobId: job.id,
 								fieldId: job.fieldId,
-								crop: job.cultivation.crop,
-								variety: job.cultivation.variety
+								updates: result.updates
 							});
 						}
 
@@ -1450,7 +1568,7 @@ class JobService {
 
 		// 409 = already exists, treat as success
 		if (response.status === 409) {
-			return { success: true, serverJobId: job.id };
+			return { success: true, serverJobId: job.id, updates: null };
 		}
 
 		if (!response.ok) {
@@ -1461,11 +1579,17 @@ class JobService {
 
 		const data = await response.json();
 		const serverJob = data.PAYLOAD;
+		const updates = data.UPDATES || null;  // Extract UPDATES if present
+
+		// Server returns { job: { _id: "..." } } in PAYLOAD, so check nested .job first
+		const serverJobId = serverJob?.job?._id || serverJob?._id || serverJob?.id || job.id;
+		console.log('[JobService] Extracted serverJobId:', serverJobId, 'from PAYLOAD:', JSON.stringify(serverJob).slice(0, 100));
 
 		return {
 			success: true,
-			serverJobId: serverJob?._id || serverJob?.id || job.id,
-			serverJob: serverJob  // Include full server response
+			serverJobId,
+			serverJob,
+			updates  // Pass through to caller
 		};
 	}
 

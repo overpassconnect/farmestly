@@ -18,6 +18,11 @@ const TabEquipment = () => {
 	const navigation = useNavigation();
 	const { formatValue } = useUnits();
 
+	// Guard against missing farmData (e.g., offline with no cache)
+	const machines = farmData?.machines || [];
+	const attachments = farmData?.attachments || [];
+	const tools = farmData?.tools || [];
+
 	return (
 		<SwipeableTabs
 			initialTab={0}
@@ -27,7 +32,7 @@ const TabEquipment = () => {
 					title: t('common:general.machinery'),
 					content: (
 						<View style={styles.tabContainer}>
-							{!farmData.machines || farmData.machines.length === 0 ? (
+							{machines.length === 0 ? (
 								<View style={styles.emptyTextContainer}>
 									<Image
 										source={require('../../assets/icons/tractor_brown.png')}
@@ -43,7 +48,7 @@ const TabEquipment = () => {
 									contentContainerStyle={styles.scrollContent}
 									showsVerticalScrollIndicator={true}
 								>
-									{farmData.machines.map((machine) => {
+									{machines.map((machine) => {
 										return (
 											<TouchableOpacity
 												key={'machine-' + machine._id}
@@ -88,7 +93,7 @@ const TabEquipment = () => {
 					title: t('common:general.attachments'),
 					content: (
 						<View style={styles.tabContainer}>
-							{!farmData.attachments || farmData.attachments.length === 0 ? (
+							{attachments.length === 0 ? (
 								<View style={styles.emptyTextContainer}>
 									<Image
 										source={require('../../assets/icons/plow_brown.png')}
@@ -104,7 +109,7 @@ const TabEquipment = () => {
 									contentContainerStyle={styles.scrollContent}
 									showsVerticalScrollIndicator={true}
 								>
-									{farmData.attachments.map((attachment) => {
+									{attachments.map((attachment) => {
 										return (
 											<TouchableOpacity
 												key={'attachment-' + attachment._id}
@@ -149,7 +154,7 @@ const TabEquipment = () => {
 					title: t('common:general.tools'),
 					content: (
 						<View style={styles.tabContainer}>
-							{!farmData.tools || farmData.tools?.length === 0 ? (
+							{tools.length === 0 ? (
 								<View style={styles.emptyTextContainer}>
 									<Image
 										source={require('../../assets/icons/tool.png')}
@@ -165,7 +170,7 @@ const TabEquipment = () => {
 									contentContainerStyle={styles.scrollContent}
 									showsVerticalScrollIndicator={true}
 								>
-									{farmData.tools.map((tool) => {
+									{tools.map((tool) => {
 										return (
 											<TouchableOpacity
 												key={'tool-' + tool._id}

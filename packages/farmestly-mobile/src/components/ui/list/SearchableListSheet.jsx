@@ -6,6 +6,7 @@ import {
 	StyleSheet,
 	Keyboard,
 	FlatList,
+	ActivityIndicator,
 } from 'react-native';
 import { BottomSheetFlatList, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useTranslation } from 'react-i18next';
@@ -95,6 +96,14 @@ const itemMatchesQuery = (item, query, searchKeys) => {
  * @param {object} props.style - Additional container styles
  * @param {string} props.responseDataKey - Key to extract array from response (e.g., 'results' for { results: [...] })
  * @param {function} props.transformResults - Optional function to transform results after fetching (e.g., deduplication)
+ * @param {boolean} props.paginatedEndpoint - Whether endpoint supports pagination (default: false)
+ * @param {number} props.pageSize - Number of items per page for paginated endpoints (default: 10)
+ * @param {string} props.paginationDataKey - Key to extract pagination info from response (default: 'pagination')
+ * @param {function} props.onRefresh - Callback for pull-to-refresh (optional)
+ * @param {boolean} props.refreshing - Whether currently refreshing (default: false)
+ * @param {boolean} props.allowCustomEntry - Whether to show option to use search text as custom entry when no results (default: false)
+ * @param {string} props.customEntryLabel - Label for custom entry option (default: 'Use "{query}"')
+ * @param {function} props.onCustomEntry - Callback when custom entry is selected, receives the search query string
  */
 const SearchableListSheet = ({
 	isBottomSheet = true,
@@ -122,6 +131,14 @@ const SearchableListSheet = ({
 	style,
 	responseDataKey = null,
 	transformResults = null,
+	paginatedEndpoint = false,
+	pageSize = 10,
+	paginationDataKey = 'pagination',
+	onRefresh,
+	refreshing = false,
+	allowCustomEntry = false,
+	customEntryLabel,
+	onCustomEntry,
 }) => {
 	const { t } = useTranslation('common');
 	const { api } = useApi();
@@ -131,6 +148,11 @@ const SearchableListSheet = ({
 	const [isLoading, setIsLoading] = useState(false);
 	const [remoteData, setRemoteData] = useState([]);
 	const [hasRemoteError, setHasRemoteError] = useState(false);
+
+	// Pagination state (for paginatedEndpoint mode)
+	const [currentPage, setCurrentPage] = useState(1);
+	const [paginationInfo, setPaginationInfo] = useState({ hasNextPage: false, totalPages: 1 });
+	const [isLoadingMore, setIsLoadingMore] = useState(false);
 
 	const debounceRef = useRef(null);
 	const lastFetchedQuery = useRef('');
@@ -158,32 +180,69 @@ const SearchableListSheet = ({
 		return sourceData.filter((item) => itemMatchesQuery(item, searchQuery, searchKeys));
 	}, [sourceData, searchQuery, searchKeys, shouldUseRemote]);
 
-	// Fetch remote data
-	const fetchRemoteData = useCallback(async (query) => {
+	// Fetch remote data (supports both simple and paginated endpoints)
+	const fetchRemoteData = useCallback(async (query, page = 1, append = false) => {
 		if (!endpoint || !isOnline) return;
 
-		setIsLoading(true);
+		if (append) {
+			setIsLoadingMore(true);
+		} else {
+			setIsLoading(true);
+		}
 
 		try {
-			const url = query
-				? `${endpoint}?search=${encodeURIComponent(query)}`
-				: endpoint;
+			let url;
+			if (paginatedEndpoint) {
+				const params = new URLSearchParams({
+					page: page.toString(),
+					limit: pageSize.toString(),
+					...(query ? { search: query } : {})
+				});
+				url = `${endpoint}?${params}`;
+			} else {
+				if (query) {
+					// Check if endpoint already has query params
+					const separator = endpoint.includes('?') ? '&' : '?';
+					url = `${endpoint}${separator}search=${encodeURIComponent(query)}`;
+				} else {
+					url = endpoint;
+				}
+			}
 
 			const result = await api(url);
 
 			if (!isMounted.current) return;
 
 			if (result.ok && result.data) {
-				// Extract data using responseDataKey if provided (e.g., 'results' for { results: [...] })
+				// Extract data using responseDataKey if provided (e.g., 'records' for { records: [...] })
 				let dataArray = responseDataKey
 					? result.data[responseDataKey]
 					: result.data;
 				dataArray = Array.isArray(dataArray) ? dataArray : [];
+
 				// Apply transformResults if provided (e.g., for deduplication)
 				if (transformResults) {
 					dataArray = transformResults(dataArray);
 				}
-				setRemoteData(dataArray);
+
+				// Handle pagination info
+				if (paginatedEndpoint && paginationDataKey && result.data[paginationDataKey]) {
+					const pagInfo = result.data[paginationDataKey];
+					setPaginationInfo({
+						hasNextPage: pagInfo.hasNextPage ?? false,
+						totalPages: pagInfo.totalPages ?? 1,
+						currentPage: pagInfo.currentPage ?? page
+					});
+					setCurrentPage(page);
+				}
+
+				// Append or replace data
+				if (append && paginatedEndpoint) {
+					setRemoteData(prev => [...prev, ...dataArray]);
+				} else {
+					setRemoteData(dataArray);
+				}
+
 				setHasRemoteError(false);
 				lastFetchedQuery.current = query;
 			} else {
@@ -197,9 +256,10 @@ const SearchableListSheet = ({
 		} finally {
 			if (isMounted.current) {
 				setIsLoading(false);
+				setIsLoadingMore(false);
 			}
 		}
-	}, [api, endpoint, isOnline, responseDataKey]);
+	}, [api, endpoint, isOnline, responseDataKey, paginatedEndpoint, pageSize, paginationDataKey, transformResults]);
 
 	// Initial fetch when online
 	useEffect(() => {
@@ -237,17 +297,28 @@ const SearchableListSheet = ({
 		// If online with endpoint, debounce and fetch
 		if (endpoint && isOnline && !hasRemoteError) {
 			debounceRef.current = setTimeout(() => {
-				fetchRemoteData(text);
+				// Reset pagination when search changes
+				if (paginatedEndpoint) {
+					setCurrentPage(1);
+					setPaginationInfo({ hasNextPage: false, totalPages: 1 });
+				}
+				fetchRemoteData(text, 1, false);
 			}, debounceMs);
 		}
 		// If offline or no endpoint, local filtering happens via useMemo
-	}, [endpoint, isOnline, hasRemoteError, debounceMs, fetchRemoteData]);
+	}, [endpoint, isOnline, hasRemoteError, debounceMs, fetchRemoteData, paginatedEndpoint]);
 
 	// Handle item selection
 	const handleSelect = useCallback((item) => {
 		Keyboard.dismiss();
 		onSelect?.(item);
 	}, [onSelect]);
+
+	// Handle custom entry selection
+	const handleCustomEntry = useCallback(() => {
+		Keyboard.dismiss();
+		onCustomEntry?.(searchQuery.trim());
+	}, [onCustomEntry, searchQuery]);
 
 	// Render list item
 	const handleRenderItem = useCallback(({ item, index }) => {
@@ -256,10 +327,16 @@ const SearchableListSheet = ({
 
 	// Handle end reached for pagination
 	const handleEndReached = useCallback(() => {
+		// Internal pagination for paginatedEndpoint mode
+		if (paginatedEndpoint && paginationInfo.hasNextPage && !isLoadingMore && !isLoading) {
+			fetchRemoteData(searchQuery, currentPage + 1, true);
+			return;
+		}
+		// External pagination callback (legacy support)
 		if (onEndReached && hasMore && !loadingMore && !isLoading) {
 			onEndReached();
 		}
-	}, [onEndReached, hasMore, loadingMore, isLoading]);
+	}, [paginatedEndpoint, paginationInfo.hasNextPage, isLoadingMore, isLoading, fetchRemoteData, searchQuery, currentPage, onEndReached, hasMore, loadingMore]);
 
 	// Render empty state
 	const renderEmptyState = () => {
@@ -272,19 +349,34 @@ const SearchableListSheet = ({
 			return renderEmpty();
 		}
 
+		const trimmedQuery = searchQuery.trim();
+		const showCustomEntryOption = allowCustomEntry && trimmedQuery.length > 0;
+
 		return (
-			<EmptyState
-				icon={require('../../../assets/icons/magnifyingglass_brown.png')}
-				title={emptyTitle || t('general.noResults') || 'No results found'}
-				subtitle={emptySubtitle || t('general.tryDifferentSearch') || 'Try a different search term'}
-			/>
+			<View style={styles.emptyStateContainer}>
+				<EmptyState
+					icon={require('../../../assets/icons/magnifyingglass_brown.png')}
+					title={emptyTitle || t('general.noResults') || 'No results found'}
+					subtitle={emptySubtitle || t('general.tryDifferentSearch') || 'Try a different search term'}
+				/>
+				{showCustomEntryOption && (
+					<View style={styles.customEntryContainer}>
+						<PrimaryButton
+							text={customEntryLabel?.replace('{query}', trimmedQuery) || `${t('general.use') || 'Use'} "${trimmedQuery}"`}
+							onPress={handleCustomEntry}
+							variant="secondary"
+							fullWidth
+						/>
+					</View>
+				)}
+			</View>
 		);
 	};
 
 	// Render loading indicator in list footer
 	const renderFooter = () => {
-		// Show loading more indicator for pagination
-		if (loadingMore) {
+		// Show loading more indicator for pagination (internal or external)
+		if (loadingMore || isLoadingMore) {
 			return (
 				<View style={styles.loadingFooter}>
 					<ActivityIndicator size="small" color={colors.SECONDARY} />
@@ -311,6 +403,20 @@ const SearchableListSheet = ({
 
 	// Calculate bottom padding based on context
 	const bottomPadding = onCancel ? 80 + insets.bottom : 20 + insets.bottom;
+
+	// Handle internal refresh for paginated endpoints
+	const handleRefresh = useCallback(() => {
+		if (paginatedEndpoint) {
+			setCurrentPage(1);
+			setPaginationInfo({ hasNextPage: false, totalPages: 1 });
+			fetchRemoteData(searchQuery, 1, false);
+		} else if (onRefresh) {
+			onRefresh();
+		}
+	}, [paginatedEndpoint, fetchRemoteData, searchQuery, onRefresh]);
+
+	// Determine if we're refreshing (internal or external)
+	const isRefreshing = refreshing || (paginatedEndpoint && isLoading && currentPage === 1 && remoteData.length > 0);
 
 	return (
 		<View style={[styles.container, style]}>
@@ -360,6 +466,8 @@ const SearchableListSheet = ({
 				keyboardDismissMode="on-drag"
 				onEndReached={handleEndReached}
 				onEndReachedThreshold={onEndReachedThreshold}
+				onRefresh={!isBottomSheet ? handleRefresh : undefined}
+				refreshing={!isBottomSheet ? isRefreshing : undefined}
 			/>
 
 			{/* Floating Cancel Button - only show if onCancel provided */}
@@ -445,6 +553,14 @@ const styles = StyleSheet.create({
 		backgroundColor: 'white',
 		borderTopWidth: 1,
 		borderTopColor: colors.SECONDARY_LIGHT,
+	},
+	emptyStateContainer: {
+		flex: 1,
+		justifyContent: 'center',
+	},
+	customEntryContainer: {
+		marginTop: 20,
+		paddingHorizontal: 20,
 	},
 });
 
