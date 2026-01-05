@@ -24,7 +24,8 @@
 		"saving": "Αποθήκευση...",
 		"goToTools": "Μετάβαση στα Εργαλεία",
 		"searchEppoCodes": "Αναζήτηση Κωδικών EPPO",
-		"clear": "Εκκαθάριση"
+		"clear": "Εκκαθάριση",
+		"useCustomIngredient": "Χρήση \"{query}\" ως προσαρμοσμένο συστατικό"
 	},
 	"labels": {
 		"username": "Όνομα Χρήστη",
@@ -75,6 +76,7 @@
 		"defaultRateUnit": "Μονάδα Δόσης",
 		"rei": "REI (Ώρες)",
 		"phi": "PHI (Ημέρες)",
+		"productForm": "Μορφή Προϊόντος",
 		"eppoCode": "Κωδικός EPPO",
 		"suggestedEppoCode": "Προτεινόμενος Κωδικός EPPO",
 		"lotNumber": "Αριθμός Παρτίδας",
@@ -110,7 +112,9 @@
 		"enterEppoCode": "Εισάγετε κωδικό EPPO",
 		"enterLotNumber": "Εισάγετε αριθμό παρτίδας",
 		"selectSeedManufacturer": "Επιλέξτε κατασκευαστή σπόρων",
-		"searchSeedManufacturer": "Αναζήτηση κατασκευαστών..."
+		"searchSeedManufacturer": "Αναζήτηση κατασκευαστών...",
+		"searchActiveSubstance": "Αναζήτηση με όνομα ή αριθμό CAS...",
+		"searchActiveIngredient": "Επιλογή δραστικής ουσίας..."
 	},
 	"jobTypes": {
 		"sow": "Σπορά",
@@ -160,15 +164,32 @@
 		"phi": "Χρόνος πριν τη συγκομιδή",
 		"productNotes": "Πρόσθετες σημειώσεις σχετικά με αυτό το προϊόν",
 		"equipmentNotes": "Πρόσθετες σημειώσεις σχετικά με αυτόν τον εξοπλισμό",
-		"applyCropProtection": "Εφαρμογή φυτοπροστατευτικών"
+		"applyCropProtection": "Εφαρμογή φυτοπροστατευτικών",
+		"productForm": "Επιλέξτε αν αυτό το προϊόν είναι υγρό ή στερεό"
 	},
 	"productTypes": {
 		"herbicide": "Ζιζανιοκτόνο",
 		"fungicide": "Μυκητοκτόνο",
 		"insecticide": "Εντομοκτόνο",
+		"acaricide": "Ακαρεοκτόνο",
+		"attractant": "Προσελκυστικό",
+		"pgr": "Ρυθμιστής Ανάπτυξης",
+		"nematicide": "Νηματωδοκτόνο",
+		"rodenticide": "Τρωκτικοκτόνο",
+		"repellent": "Απωθητικό",
+		"bactericide": "Βακτηριοκτόνο",
+		"molluscicide": "Σαλιγκαροκτόνο",
+		"desiccant": "Αποξηραντικό",
+		"elicitor": "Επαγωγέας",
+		"soilTreatment": "Επεξεργασία Εδάφους",
 		"adjuvant": "Βοηθητικό",
 		"fertilizer": "Λίπασμα",
 		"other": "Άλλο",
+		"custom": "Προσαρμοσμένο",
+		"liquid": "Υγρό",
+		"solid": "Στερεό"
+	},
+	"productForms": {
 		"liquid": "Υγρό",
 		"solid": "Στερεό"
 	},
@@ -176,13 +197,29 @@
 		"herbicide": "Ελέγχει ζιζάνια και ανεπιθύμητα φυτά",
 		"fungicide": "Ελέγχει μυκητολογικές ασθένειες",
 		"insecticide": "Ελέγχει έντομα και παράσιτα",
+		"acaricide": "Ελέγχει ακάρεα και τσιμπούρια",
+		"attractant": "Προσελκύει παράσιτα για παρακολούθηση ή παγίδευση",
+		"pgr": "Ρυθμίζει την ανάπτυξη των φυτών",
+		"nematicide": "Ελέγχει νηματώδεις",
+		"rodenticide": "Ελέγχει τρωκτικά",
+		"repellent": "Απωθεί παράσιτα",
+		"bactericide": "Ελέγχει βακτηριακές ασθένειες",
+		"molluscicide": "Ελέγχει σαλιγκάρια και γυμνοσάλιαγκες",
+		"desiccant": "Αποξηραίνει φυτικό υλικό για συγκομιδή",
+		"elicitor": "Διεγείρει τους αμυντικούς μηχανισμούς των φυτών",
+		"soilTreatment": "Αντιμετωπίζει εδαφογενή παράσιτα και ασθένειες",
 		"adjuvant": "Ενισχύει την αποτελεσματικότητα του ψεκασμού",
 		"fertilizer": "Παρέχει θρεπτικά στοιχεία στα φυτά",
-		"other": "Άλλοι τύποι προϊόντων"
+		"other": "Άλλοι τύποι προϊόντων",
+		"custom": "Προσαρμοσμένος τύπος προϊόντος"
 	},
 	"verification": {
 		"verified": "Επαληθευμένο",
 		"pendingVerification": "Εκκρεμής επαλήθευση"
+	},
+	"status": {
+		"approved": "Εγκεκριμένο",
+		"notApproved": "Μη εγκεκριμένο"
 	},
 	"general": {
 		"profile": "Προφίλ",
@@ -225,14 +262,17 @@
 		"tryDifferentEppoSearch": "Δοκιμάστε διαφορετικό όρο αναζήτησης",
 		"enterCropFirst": "Εισάγετε όνομα καλλιέργειας για προτάσεις",
 		"noSeedManufacturersFound": "Δεν βρέθηκαν κατασκευαστές σπόρων",
-		"tryDifferentSearch": "Δοκιμάστε διαφορετικό όρο αναζήτησης"
+		"tryDifferentSearch": "Δοκιμάστε διαφορετικό όρο αναζήτησης",
+		"noSubstanceResults": "Δεν βρέθηκαν ουσίες",
+		"tryDifferentSubstanceSearch": "Δοκιμάστε διαφορετικό όρο αναζήτησης"
 	},
 	"hints": {
 		"tapToSelect": "Πατήστε για επιλογή"
 	},
 	"titles": {
 		"searchEppoCodes": "Αναζήτηση Κωδικών EPPO",
-		"selectSeedManufacturer": "Επιλογή Κατασκευαστή Σπόρων"
+		"selectSeedManufacturer": "Επιλογή Κατασκευαστή Σπόρων",
+		"searchActiveSubstances": "Αναζήτηση Δραστικών Ουσιών"
 	},
 	"compliance": {
 		"reiTitle": "Ενεργό Χρονικό Διάστημα Επανεισόδου",

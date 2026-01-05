@@ -17,8 +17,15 @@ const TabInputs = () => {
 	// Guard against missing farmData (e.g., offline with no cache)
 	const products = farmData?.products || [];
 
-	// Helper function to get product type display name using i18n
+	// Helper function to get product type display name
+	// Handles both new { code, name } format and legacy string format
 	const getProductTypeDisplay = (type) => {
+		if (!type) return '';
+		// New format: { code, name }
+		if (typeof type === 'object' && type.name) {
+			return type.name;
+		}
+		// Legacy string format
 		const map = {
 			'herbicide': t('common:productTypes.herbicide'),
 			'fungicide': t('common:productTypes.fungicide'),
@@ -66,7 +73,7 @@ const TabInputs = () => {
 									timeCount={null}
 									subTitle1={getProductTypeDisplay(product.type)}
 									title={product.name}
-									subTitle2={product.activeIngredient || product.notes}
+									subTitle2={product.activeIngredient?.name || product.activeIngredient || product.notes}
 									showChevron={true}
 								/>
 							</TouchableOpacity>

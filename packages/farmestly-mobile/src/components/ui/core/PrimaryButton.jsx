@@ -112,6 +112,7 @@ const styles = StyleSheet.create({
 	contentContainer: {
 		flexDirection: 'row',
 		alignItems: 'center',
+		justifyContent: 'center',
 		gap: 8,
 	},
 	leftIcon: {

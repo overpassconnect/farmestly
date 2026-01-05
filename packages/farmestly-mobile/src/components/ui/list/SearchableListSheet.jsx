@@ -101,6 +101,9 @@ const itemMatchesQuery = (item, query, searchKeys) => {
  * @param {string} props.paginationDataKey - Key to extract pagination info from response (default: 'pagination')
  * @param {function} props.onRefresh - Callback for pull-to-refresh (optional)
  * @param {boolean} props.refreshing - Whether currently refreshing (default: false)
+ * @param {boolean} props.allowCustomEntry - Whether to show option to use search text as custom entry when no results (default: false)
+ * @param {string} props.customEntryLabel - Label for custom entry option (default: 'Use "{query}"')
+ * @param {function} props.onCustomEntry - Callback when custom entry is selected, receives the search query string
  */
 const SearchableListSheet = ({
 	isBottomSheet = true,
@@ -133,6 +136,9 @@ const SearchableListSheet = ({
 	paginationDataKey = 'pagination',
 	onRefresh,
 	refreshing = false,
+	allowCustomEntry = false,
+	customEntryLabel,
+	onCustomEntry,
 }) => {
 	const { t } = useTranslation('common');
 	const { api } = useApi();
@@ -194,9 +200,13 @@ const SearchableListSheet = ({
 				});
 				url = `${endpoint}?${params}`;
 			} else {
-				url = query
-					? `${endpoint}?search=${encodeURIComponent(query)}`
-					: endpoint;
+				if (query) {
+					// Check if endpoint already has query params
+					const separator = endpoint.includes('?') ? '&' : '?';
+					url = `${endpoint}${separator}search=${encodeURIComponent(query)}`;
+				} else {
+					url = endpoint;
+				}
 			}
 
 			const result = await api(url);
@@ -304,6 +314,12 @@ const SearchableListSheet = ({
 		onSelect?.(item);
 	}, [onSelect]);
 
+	// Handle custom entry selection
+	const handleCustomEntry = useCallback(() => {
+		Keyboard.dismiss();
+		onCustomEntry?.(searchQuery.trim());
+	}, [onCustomEntry, searchQuery]);
+
 	// Render list item
 	const handleRenderItem = useCallback(({ item, index }) => {
 		return renderItem({ item, index, onSelect: handleSelect });
@@ -333,12 +349,27 @@ const SearchableListSheet = ({
 			return renderEmpty();
 		}
 
+		const trimmedQuery = searchQuery.trim();
+		const showCustomEntryOption = allowCustomEntry && trimmedQuery.length > 0;
+
 		return (
-			<EmptyState
-				icon={require('../../../assets/icons/magnifyingglass_brown.png')}
-				title={emptyTitle || t('general.noResults') || 'No results found'}
-				subtitle={emptySubtitle || t('general.tryDifferentSearch') || 'Try a different search term'}
-			/>
+			<View style={styles.emptyStateContainer}>
+				<EmptyState
+					icon={require('../../../assets/icons/magnifyingglass_brown.png')}
+					title={emptyTitle || t('general.noResults') || 'No results found'}
+					subtitle={emptySubtitle || t('general.tryDifferentSearch') || 'Try a different search term'}
+				/>
+				{showCustomEntryOption && (
+					<View style={styles.customEntryContainer}>
+						<PrimaryButton
+							text={customEntryLabel?.replace('{query}', trimmedQuery) || `${t('general.use') || 'Use'} "${trimmedQuery}"`}
+							onPress={handleCustomEntry}
+							variant="secondary"
+							fullWidth
+						/>
+					</View>
+				)}
+			</View>
 		);
 	};
 
@@ -522,6 +553,14 @@ const styles = StyleSheet.create({
 		backgroundColor: 'white',
 		borderTopWidth: 1,
 		borderTopColor: colors.SECONDARY_LIGHT,
+	},
+	emptyStateContainer: {
+		flex: 1,
+		justifyContent: 'center',
+	},
+	customEntryContainer: {
+		marginTop: 20,
+		paddingHorizontal: 20,
 	},
 });
 

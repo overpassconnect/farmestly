@@ -312,48 +312,57 @@ export const GlobalContextProvider = ({ children }) => {
 	// Listen to JobService events
 	useEffect(() => {
 		const removeListener = JobService.on((event, data) => {
-			if (event === 'change') {
-				setActiveRecordings(JobService.getAllActive());
-			} else if (event === 'tick') {
-				setActiveRecordings(prev => {
-					const recordings = JobService.getAllActive();
-					const prevKeys = Object.keys(prev);
-					const newKeys = Object.keys(recordings);
+			switch (event) {
+				case 'change':
+					setActiveRecordings(JobService.getAllActive());
+					break;
 
-					if (prevKeys.length !== newKeys.length) {
-						return recordings;
-					}
+				case 'tick':
+					setActiveRecordings(prev => {
+						const recordings = JobService.getAllActive();
+						const prevKeys = Object.keys(prev);
+						const newKeys = Object.keys(recordings);
 
-					const statusChanged = newKeys.some(key => {
-						const prevRec = prev[key];
-						const newRec = recordings[key];
-						if (!prevRec) return true;
-						return prevRec.status !== newRec.status;
-					});
+						if (prevKeys.length !== newKeys.length) {
+							return recordings;
+						}
 
-					return statusChanged ? recordings : prev;
-				});
-			} else if (event === 'sync') {
-				// Handle incremental updates from server after job sync
-				const { updates } = data || {};
-				if (!updates || typeof updates !== 'object') return;
-
-				setFarmRaw(prev => {
-					if (!prev) return prev;
-
-					const next = { ...prev };
-					Object.entries(updates).forEach(([collection, docs]) => {
-						if (!Array.isArray(docs) || !prev[collection]) return;
-
-						next[collection] = prev[collection].map(item => {
-							const update = docs.find(d => String(d._id) === String(item._id));
-							if (!update) return item;
-							return mergeWithProtocol(item, update);
+						const statusChanged = newKeys.some(key => {
+							const prevRec = prev[key];
+							const newRec = recordings[key];
+							if (!prevRec) return true;
+							return prevRec.status !== newRec.status;
 						});
-					});
 
-					return next;
-				});
+						return statusChanged ? recordings : prev;
+					});
+					break;
+
+				case 'sync':
+					// Handle incremental updates from server after job sync
+					const { updates } = data || {};
+					if (!updates || typeof updates !== 'object') break;
+
+					setFarmRaw(prev => {
+						if (!prev) return prev;
+
+						const next = { ...prev };
+						Object.entries(updates).forEach(([collection, docs]) => {
+							if (!Array.isArray(docs) || !prev[collection]) return;
+
+							next[collection] = prev[collection].map(item => {
+								const update = docs.find(d => String(d._id) === String(item._id));
+								if (!update) return item;
+								return mergeWithProtocol(item, update);
+							});
+						});
+
+						return next;
+					});
+					break;
+
+				default:
+					break;
 			}
 		});
 

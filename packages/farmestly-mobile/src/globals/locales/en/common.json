@@ -25,7 +25,8 @@
 		"goToTools": "Go to Tools",
 		"goToAttachments": "Go to Attachments",
 		"searchEppoCodes": "Search EPPO Codes",
-		"clear": "Clear"
+		"clear": "Clear",
+		"useCustomIngredient": "Use \"{query}\" as custom ingredient"
 	},
 	"labels": {
 		"username": "Username",
@@ -75,6 +76,7 @@
 		"defaultRateUnit": "Default Rate Unit",
 		"rei": "REI (Hours)",
 		"phi": "PHI (Days)",
+		"productForm": "Product Form",
 		"selectIrrigator": "Select Irrigator",
 		"flowRate": "Flow Rate",
 		"eppoCode": "EPPO Code",
@@ -112,7 +114,9 @@
 		"enterEppoCode": "Enter code",
 		"enterLotNumber": "Enter lot number",
 		"selectSeedManufacturer": "Select seed manufacturer",
-		"searchSeedManufacturer": "Search manufacturers..."
+		"searchSeedManufacturer": "Search manufacturers...",
+		"searchActiveSubstance": "Search by name or CAS number...",
+		"searchActiveIngredient": "Search or enter active ingredient..."
 	},
 	"jobTypes": {
 		"sow": "Sow",
@@ -160,6 +164,7 @@
 		"defaultRateUnit": "Unit of measurement",
 		"rei": "Re-entry interval",
 		"phi": "Pre-harvest interval",
+		"productForm": "Select whether this product is a liquid or solid",
 		"productNotes": "Additional notes about this product",
 		"equipmentNotes": "Additional notes about this equipment",
 		"applyCropProtection": "Apply crop protection products",
@@ -170,9 +175,25 @@
 		"herbicide": "Herbicide",
 		"fungicide": "Fungicide",
 		"insecticide": "Insecticide",
+		"acaricide": "Acaricide",
+		"attractant": "Attractant",
+		"pgr": "Plant Growth Regulator",
+		"nematicide": "Nematicide",
+		"rodenticide": "Rodenticide",
+		"repellent": "Repellent",
+		"bactericide": "Bactericide",
+		"molluscicide": "Molluscicide",
+		"desiccant": "Desiccant",
+		"elicitor": "Elicitor",
+		"soilTreatment": "Soil Treatment",
 		"adjuvant": "Adjuvant",
 		"fertilizer": "Fertilizer",
 		"other": "Other",
+		"custom": "Custom",
+		"liquid": "Liquid",
+		"solid": "Solid"
+	},
+	"productForms": {
 		"liquid": "Liquid",
 		"solid": "Solid"
 	},
@@ -180,13 +201,29 @@
 		"herbicide": "Controls weeds and unwanted plants",
 		"fungicide": "Controls fungal diseases",
 		"insecticide": "Controls insects and pests",
+		"acaricide": "Controls mites and ticks",
+		"attractant": "Attracts pests for monitoring or trapping",
+		"pgr": "Regulates plant growth and development",
+		"nematicide": "Controls nematodes",
+		"rodenticide": "Controls rodents",
+		"repellent": "Repels pests",
+		"bactericide": "Controls bacterial diseases",
+		"molluscicide": "Controls slugs and snails",
+		"desiccant": "Dries plant material for harvest",
+		"elicitor": "Stimulates plant defense responses",
+		"soilTreatment": "Treats soil-borne pests and diseases",
 		"adjuvant": "Enhances spray effectiveness",
 		"fertilizer": "Provides plant nutrients",
-		"other": "Other product types"
+		"other": "Other product types",
+		"custom": "User-defined product type"
 	},
 	"verification": {
 		"verified": "Verified",
 		"pendingVerification": "Pending verification"
+	},
+	"status": {
+		"approved": "Approved",
+		"notApproved": "Not Approved"
 	},
 	"general": {
 		"profile": "Profile",
@@ -229,14 +266,17 @@
 		"tryDifferentEppoSearch": "Try a different search term",
 		"enterCropFirst": "Enter crop name to see suggestions",
 		"noSeedManufacturersFound": "No seed manufacturers found",
-		"tryDifferentSearch": "Try a different search term"
+		"tryDifferentSearch": "Try a different search term",
+		"noSubstanceResults": "No substances found",
+		"tryDifferentSubstanceSearch": "Try a different search term"
 	},
 	"hints": {
 		"tapToSelect": "Tap to select"
 	},
 	"titles": {
 		"searchEppoCodes": "Search EPPO Codes",
-		"selectSeedManufacturer": "Select Seed Manufacturer"
+		"selectSeedManufacturer": "Select Seed Manufacturer",
+		"searchActiveSubstances": "Search Active Substances"
 	},
 	"compliance": {
 		"reiTitle": "Re-Entry Interval Active",
