@@ -1,0 +1,61 @@
+# Web Frontend Configuration
+# This file will be processed by Jenkins and deployed to staging/production
+# Template variables: {{APP_PORT}}, {{SERVICE_NAME}}, {{SSL_CERTIFICATE}}, {{SSL_CERTIFICATE_KEY}}
+
+server {
+	listen 80 default_server;
+	listen [::]:80 default_server;
+	server_name {{WEB_DOMAIN}};
+
+	# Redirect HTTP to HTTPS
+	return 301 https://$server_name$request_uri;
+}
+
+server {
+	listen 443 ssl http2 default_server;
+	listen [::]:443 ssl http2 default_server;
+
+	server_name {{WEB_DOMAIN}};
+	server_tokens off;
+
+	# SSL certificates (replaced by Jenkins deployment)
+	ssl_certificate {{SSL_CERTIFICATE}};
+	ssl_certificate_key {{SSL_CERTIFICATE_KEY}};
+
+	# SSL configuration
+	ssl_protocols TLSv1.2 TLSv1.3;
+	ssl_prefer_server_ciphers on;
+	ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+	ssl_session_cache shared:SSL:10m;
+	ssl_session_timeout 10m;
+
+	# Security headers
+	add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+	add_header X-Frame-Options "SAMEORIGIN" always;
+	add_header X-Content-Type-Options "nosniff" always;
+	add_header X-XSS-Protection "1; mode=block" always;
+
+	# Web root (deployed by Jenkins)
+	root /var/www/html;
+	index index.html index.htm;
+
+	# Gzip compression for web assets
+	gzip on;
+	gzip_vary on;
+	gzip_min_length 1000;
+	gzip_proxied any;
+	gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+	location / {
+		# SPA routing: serve index.html for any route that doesn't match a file
+		# This enables client-side routing for React Router (e.g., /emailVerification)
+		try_files $uri $uri/ /index.html;
+	}
+
+	# Cache static assets with long expiry
+	location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+		expires 1y;
+		add_header Cache-Control "public, immutable";
+		try_files $uri =404;
+	}
+}

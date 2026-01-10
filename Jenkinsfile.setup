@@ -1,0 +1,607 @@
+pipeline {
+    agent any
+    
+    // Manual trigger only for server setup
+    parameters {
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['STAGING', 'PRODUCTION'],
+            description: 'Environment to set up'
+        )
+        string(
+            name: 'SERVER_HOST',
+            defaultValue: '',
+            description: 'Server hostname or IP address'
+        )
+        string(
+            name: 'DOMAIN_NAME',
+            defaultValue: '',
+            description: 'Domain name for the application (e.g., example.com)'
+        )
+        string(
+            name: 'ADMIN_EMAIL',
+            defaultValue: 'admin@example.com',
+            description: 'Email for SSL certificate registration'
+        )
+        booleanParam(
+            name: 'CONFIRM_SETUP',
+            defaultValue: false,
+            description: 'I confirm this is a NEW server setup'
+        )
+        booleanParam(
+            name: 'LOCK_MONGODB_VERSION',
+            defaultValue: true,
+            description: 'Lock MongoDB version (prevents automatic updates)'
+        )
+    }
+    
+    environment {
+        SERVICE_NAME = 'myapp'  // Change this to your app name
+        APP_USER = 'dev'
+        APP_PORT = '5000'  // Used in Nginx config and systemd env
+        EMAIL = 'dev@overpassconnect.com'
+    }
+    
+    stages {
+        stage('Pre-flight Checks') {
+            steps {
+                script {
+                    if (!params.CONFIRM_SETUP) {
+                        error('Setup not confirmed! This will configure a new server.')
+                    }
+                    
+                    if (!params.SERVER_HOST || !params.DOMAIN_NAME) {
+                        error('SERVER_HOST and DOMAIN_NAME are required!')
+                    }
+                    
+                    echo """
+========================================
+SERVER SETUP - ${params.ENVIRONMENT}
+========================================
+Server: ${params.SERVER_HOST}
+Domain: ${params.DOMAIN_NAME}
+Email: ${params.ADMIN_EMAIL}
+Service: ${SERVICE_NAME}
+App Port: ${APP_PORT}
+========================================
+WARNING: This will install and configure:
+- Node.js (via NVM)
+- MongoDB 8.0
+- Nginx
+- SSL (Let's Encrypt)
+- Systemd service
+========================================
+"""
+                    
+                    timeout(time: 15, unit: 'MINUTES') {
+                        input message: "Proceed with ${params.ENVIRONMENT} server setup?",
+                              ok: 'Setup Server',
+                              submitter: 'admin'
+                    }
+                }
+            }
+        }
+        
+        stage('Create Application User') {
+            steps {
+                script {
+                    echo "Creating application user: ${APP_USER}"
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${params.SERVER_HOST} \
+                                "id -u ${APP_USER} &>/dev/null || useradd -m -s /bin/bash ${APP_USER}"
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Update System') {
+            steps {
+                script {
+                    echo 'Updating system packages...'
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${params.SERVER_HOST} \
+                                "export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get upgrade -y"
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Install Essential Packages') {
+            steps {
+                script {
+                    echo 'Installing essential packages...'
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${params.SERVER_HOST} \
+                                "apt-get install -y curl wget git build-essential nginx certbot python3-certbot-nginx gnupg ufw"
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Install Node.js') {
+            steps {
+                script {
+                    echo 'Installing NVM and Node.js...'
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${params.SERVER_HOST} \
+                                "su - ${APP_USER} -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash'"
+                            
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${params.SERVER_HOST} \
+                                "su - ${APP_USER} -c 'source ~/.nvm/nvm.sh && nvm install --lts && nvm use --lts && nvm alias default node'"
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Install MongoDB 8.0') {
+            steps {
+                script {
+                    echo 'Installing MongoDB 8.0...'
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${params.SERVER_HOST} '
+                                curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor
+                                
+                                echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/8.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+                                
+                                apt-get update
+                                apt-get install -y mongodb-org
+
+                                chown -R mongodb:mongodb /var/lib/mongodb
+
+                                # Conditionally lock MongoDB version
+                                if [ "${params.LOCK_MONGODB_VERSION}" = "true" ]; then
+                                    echo "Locking MongoDB version to prevent auto-updates..."
+                                    echo "mongodb-org hold" | dpkg --set-selections
+                                    echo "mongodb-org-database hold" | dpkg --set-selections
+                                    echo "mongodb-org-server hold" | dpkg --set-selections
+                                    echo "mongodb-mongosh hold" | dpkg --set-selections
+                                    echo "mongodb-org-mongos hold" | dpkg --set-selections
+                                    echo "mongodb-org-tools hold" | dpkg --set-selections
+                                    echo "✓ MongoDB version locked"
+                                else
+                                    echo "MongoDB version NOT locked (can be updated via apt)"
+                                fi
+                            '
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Configure MongoDB') {
+            steps {
+                script {
+                    echo 'Configuring MongoDB...'
+                    
+                    // Create MongoDB config locally
+                    sh """
+                        cat > ${WORKSPACE}/mongod.conf << 'EOFMONGO'
+# mongod.conf for MongoDB 8.0
+storage:
+  dbPath: /var/lib/mongodb
+  engine: wiredTiger
+  wiredTiger:
+    engineConfig:
+      cacheSizeGB: 1
+
+systemLog:
+  destination: file
+  logAppend: true
+  quiet: true
+  path: /var/log/mongodb/mongod.log
+  logRotate: reopen
+  verbosity: 0
+  timeStampFormat: iso8601-local
+  component:
+    network:
+      verbosity: 0
+    replication:
+      verbosity: 0
+      heartbeats:
+        verbosity: 0
+
+net:
+  port: 27017
+  bindIp: 127.0.0.1
+
+processManagement:
+  timeZoneInfo: /usr/share/zoneinfo
+  fork: true
+  pidFilePath: /var/run/mongodb/mongod.pid
+EOFMONGO
+                    """
+                    
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            scp -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                ${WORKSPACE}/mongod.conf root@${params.SERVER_HOST}:/etc/mongod.conf
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Setup MongoDB Log Rotation') {
+            steps {
+                script {
+                    sh """
+                        cat > ${WORKSPACE}/mongodb.logrotate << 'EOFLOGROTATE'
+/var/log/mongodb/*.log {
+    daily
+    rotate 30
+    size 100M
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 mongodb mongodb
+    sharedscripts
+    postrotate
+        /bin/kill -SIGUSR1 \\$(cat /var/run/mongodb/mongod.pid 2>/dev/null) 2>/dev/null || true
+    endscript
+}
+EOFLOGROTATE
+                    """
+                    
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            scp -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                ${WORKSPACE}/mongodb.logrotate root@${params.SERVER_HOST}:/etc/logrotate.d/mongodb
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Start MongoDB') {
+            steps {
+                script {
+                    echo 'Starting MongoDB...'
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${params.SERVER_HOST} \
+                                "systemctl daemon-reload && systemctl enable mongod && systemctl start mongod"
+                            
+                            echo "Waiting for MongoDB to be ready..."
+                            sleep 10
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Create Application Directories') {
+            steps {
+                script {
+                    echo 'Creating application directories...'
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${params.SERVER_HOST} '
+                                mkdir -p /home/${APP_USER}/${SERVICE_NAME} /home/${APP_USER}/backups
+                                chown -R ${APP_USER}:${APP_USER} /home/${APP_USER}/${SERVICE_NAME} /home/${APP_USER}/backups
+                                mkdir -p /etc/${SERVICE_NAME} /var/log/${SERVICE_NAME}
+                                chown ${APP_USER}:${APP_USER} /var/log/${SERVICE_NAME}
+                            '
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Configure Nginx') {
+            steps {
+                script {
+                    echo 'Configuring Nginx...'
+                    
+                    sh """
+                        cat > ${WORKSPACE}/nginx-site.conf << 'EOFNGINX'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${params.DOMAIN_NAME};
+    server_tokens off;
+    
+    add_header Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'" always;
+    add_header X-DNS-Prefetch-Control "off" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Strict-Transport-Security "max-age=15552000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+
+    root /var/www/html;
+    index index.html index.htm;
+
+    location /api/sse/ {
+        proxy_pass http://127.0.0.1:${APP_PORT}/api/sse/;
+        proxy_set_header Host \\$host;
+        proxy_set_header X-Real-IP \\$remote_addr;
+        proxy_set_header X-Forwarded-For \\$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \\$scheme;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_set_header Connection '';
+        proxy_http_version 1.1;
+        proxy_read_timeout 24h;
+        proxy_send_timeout 24h;
+        gzip off;
+        proxy_redirect off;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:${APP_PORT};
+        proxy_set_header Host \\$host;
+        proxy_set_header X-Real-IP \\$remote_addr;
+        proxy_set_header X-Forwarded-For \\$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \\$scheme;
+    }
+
+    location / {
+        try_files \\$uri \\$uri/ /index.html =404;
+    }
+}
+EOFNGINX
+                    """
+                    
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            scp -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                ${WORKSPACE}/nginx-site.conf root@${params.SERVER_HOST}:/etc/nginx/sites-available/${params.DOMAIN_NAME}
+                            
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${params.SERVER_HOST} '
+                                rm -f /etc/nginx/sites-enabled/default
+                                ln -sf /etc/nginx/sites-available/${params.DOMAIN_NAME} /etc/nginx/sites-enabled/
+                                nginx -t && systemctl reload nginx
+                            '
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Create Systemd Service') {
+            steps {
+                script {
+                    echo 'Creating systemd service...'
+                    
+                    // Get Node path
+                    def nodePath = ''
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        nodePath = sh(
+                            script: """
+                                ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                    root@${params.SERVER_HOST} \
+                                    "su - ${APP_USER} -c 'source ~/.nvm/nvm.sh && which node'"
+                            """,
+                            returnStdout: true
+                        ).trim()
+                    }
+                    
+                    sh """
+                        cat > ${WORKSPACE}/${SERVICE_NAME}.service << EOFSERVICE
+[Unit]
+Description=${SERVICE_NAME} Node.js Application
+After=network.target mongod.service
+Requires=mongod.service
+
+[Service]
+Type=simple
+User=${APP_USER}
+Group=${APP_USER}
+WorkingDirectory=/home/${APP_USER}/${SERVICE_NAME}
+ExecStart=${nodePath} index.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=${SERVICE_NAME}
+EnvironmentFile=/etc/${SERVICE_NAME}/env.conf
+Environment="NODE_ENV=production"
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+EOFSERVICE
+                    """
+                    
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            scp -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                ${WORKSPACE}/${SERVICE_NAME}.service root@${params.SERVER_HOST}:/etc/systemd/system/${SERVICE_NAME}.service
+                            
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${params.SERVER_HOST} \
+                                "systemctl daemon-reload"
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Create Placeholder Environment') {
+            steps {
+                script {
+                    sh """
+                        cat > ${WORKSPACE}/env.conf << EOFENV
+# ${SERVICE_NAME} Environment Variables
+# This file will be replaced during deployment
+NODE_ENV=production
+PORT=${APP_PORT}
+EOFENV
+                    """
+                    
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            scp -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                ${WORKSPACE}/env.conf root@${params.SERVER_HOST}:/etc/${SERVICE_NAME}/env.conf
+                            
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${params.SERVER_HOST} \
+                                "chmod 600 /etc/${SERVICE_NAME}/env.conf"
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Setup Firewall') {
+            steps {
+                script {
+                    echo 'Configuring firewall...'
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${params.SERVER_HOST} '
+                                ufw allow 22/tcp
+                                ufw allow 80/tcp
+                                ufw allow 443/tcp
+                                echo "y" | ufw enable
+                            '
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Setup SSL Certificate') {
+            steps {
+                script {
+                    echo 'Setting up SSL certificate with Let\'s Encrypt...'
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${params.SERVER_HOST} \
+                                "certbot --nginx -d ${params.DOMAIN_NAME} --non-interactive --agree-tos --email ${params.ADMIN_EMAIL} --redirect"
+                            
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${params.SERVER_HOST} '
+                                systemctl enable certbot.timer
+                                systemctl start certbot.timer
+                                certbot renew --dry-run
+                            '
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Verify Installation') {
+            steps {
+                script {
+                    echo 'Verifying services...'
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: params.ENVIRONMENT == 'PRODUCTION' ? 'production-ssh-key' : 'staging-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${params.SERVER_HOST} '
+                                echo "=== Service Status ==="
+                                systemctl is-active mongod && echo "MongoDB: ✓ Running" || echo "MongoDB: ✗ Not running"
+                                systemctl is-active nginx && echo "Nginx: ✓ Running" || echo "Nginx: ✗ Not running"
+                                su - ${APP_USER} -c "source ~/.nvm/nvm.sh && node --version" && echo "Node.js: ✓ Installed"
+                                systemctl list-timers | grep certbot && echo "Certbot timer: ✓ Active" || echo "Certbot timer: ✗ Not active"
+                            '
+                        """
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Cleaning up temporary files...'
+            sh """
+                rm -f ${WORKSPACE}/mongod.conf
+                rm -f ${WORKSPACE}/mongodb.logrotate
+                rm -f ${WORKSPACE}/nginx-site.conf
+                rm -f ${WORKSPACE}/${SERVICE_NAME}.service
+                rm -f ${WORKSPACE}/env.conf
+            """
+        }
+        success {
+            echo """
+========================================
+SERVER SETUP COMPLETED SUCCESSFULLY!
+========================================
+Environment: ${params.ENVIRONMENT}
+Server: ${params.SERVER_HOST}
+Domain: ${params.DOMAIN_NAME}
+Service: ${SERVICE_NAME}
+Port: ${APP_PORT}
+========================================
+Next steps:
+1. Run the appropriate deployment pipeline
+2. Monitor logs: journalctl -u ${SERVICE_NAME} -f
+========================================
+"""
+        }
+        failure {
+            echo 'Server setup failed! Check the logs for details.'
+        }
+    }
+}
