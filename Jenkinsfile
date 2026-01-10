@@ -145,7 +145,59 @@ Build: ${BUILD_NUMBER}
                 ])
             }
         }
-        
+
+        stage('Setup Build Tools') {
+            steps {
+                script {
+                    echo 'Setting up Node.js build environment...'
+                    sh '''
+                        # Install nvm if not present
+                        if [ ! -d "$HOME/.nvm" ]; then
+                            echo "Installing nvm..."
+                            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+                        fi
+
+                        # Load nvm
+                        export NVM_DIR="$HOME/.nvm"
+                        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+                        # Install/use Node.js 18 (adjust version as needed)
+                        nvm install 18
+                        nvm use 18
+
+                        # Verify installation
+                        node --version
+                        npm --version
+
+                        echo "✓ Node.js build environment ready"
+                    '''
+                }
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                script {
+                    echo 'Installing dependencies for backend and frontend...'
+                    sh '''
+                        export NVM_DIR="$HOME/.nvm"
+                        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+                        nvm use 18
+
+                        echo "Installing backend dependencies..."
+                        cd ${BACKEND_DIR}
+                        npm ci
+
+                        echo "Installing frontend dependencies..."
+                        cd ../${FRONTEND_DIR}
+                        npm ci
+
+                        echo "✓ All dependencies installed"
+                    '''
+                }
+            }
+        }
+
         stage('Run Tests') {
             when {
                 expression { !params.SKIP_TESTS }
@@ -154,8 +206,12 @@ Build: ${BUILD_NUMBER}
                 script {
                     echo 'Running tests...'
                     dir("${BACKEND_DIR}") {
-                        sh 'npm ci'
-                        sh 'npm test || exit 1'
+                        sh '''
+                            export NVM_DIR="$HOME/.nvm"
+                            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+                            nvm use 18
+                            npm test || exit 1
+                        '''
                     }
                 }
             }
@@ -200,16 +256,22 @@ Build: ${BUILD_NUMBER}
         stage('Build Frontend') {
             steps {
                 dir("${FRONTEND_DIR}") {
-                    sh """
+                    sh '''
+                        export NVM_DIR="$HOME/.nvm"
+                        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+                        nvm use 18
+
                         rm -rf dist
-                        npm ci
+
+                        # Build frontend - outputs to dist/ directory by default
+                        # The publicPath in webpack.config.js is already set to '/' for absolute paths
                         npm run build
-                        
+
                         if [ ! -d "dist" ] || [ ! -f "dist/index.html" ]; then
                             echo "ERROR: Frontend build failed"
                             exit 1
                         fi
-                    """
+                    '''
                 }
                 sh "cp -r ${FRONTEND_DIR}/dist/* ${DEPLOY_DIR}/frontend/"
             }
@@ -342,7 +404,7 @@ Build: ${BUILD_NUMBER}
                                     BACKUP_COUNT=\$(ls -1d */ 2>/dev/null | wc -l)
                                     if [ "\${BACKUP_COUNT}" -gt ${keepBackups} ]; then
                                         echo "Cleaning up old backups (keeping ${keepBackups} most recent)..."
-                                        ls -1td */ | tail -n +$((${keepBackups} + 1)) | xargs -r rm -rf
+                                        ls -1td */ | tail -n +\$((${keepBackups} + 1)) | xargs -r rm -rf
                                         echo "✓ Old backups cleaned up"
                                     fi
                                 else
