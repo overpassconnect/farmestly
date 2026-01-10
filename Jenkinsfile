@@ -175,7 +175,7 @@ Build: ${BUILD_NUMBER}
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Install Build Dependencies') {
             steps {
                 script {
                     echo 'Installing dependencies for backend and frontend...'
