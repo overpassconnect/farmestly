@@ -69,12 +69,55 @@ pipeline {
                         envConfigs = [
                             NODE_ENV: env.DEPLOY_ENV,
                             PORT: env.APP_PORT,
-                            LOG_LEVEL: 'warn',
-                            MAX_REQUESTS_PER_MINUTE: '60',
-                            COOKIE_SECURE: 'true',
-                            ENABLE_RATE_LIMITING: 'true',
-                            MAX_FILE_SIZE: '5242880',
-                            SESSION_TIMEOUT: '7200000',
+
+                            // URLs
+                            WEB_URL: "https://${env.WEB_DOMAIN}",
+                            API_URL: "https://${env.API_DOMAIN}",
+
+                            // SMTP (non-secret parts)
+                            SMTP_HOST: 'mail.overpassconnect.com',
+                            SMTP_PORT: '587',
+                            SMTP_USER: '_testing@overpassconnect.com',
+                            SMTP_IS_STARTTLS: 'true',
+
+                            // Redis
+                            REDIS_HOST: 'localhost',
+                            REDIS_PORT: '6379',
+                            REDIS_DB: '0',
+                            REDIS_RATE_LIMIT_DB: '1',
+
+                            // Report Storage
+                            REPORT_STORAGE_TYPE: 'filesystem',
+                            REPORT_STORAGE_PATH: '/var/farmestly/reports',
+                            REPORT_EXPIRY_MINUTES: '30',
+                            REPORT_CLEANUP_INTERVAL_MINUTES: '5',
+
+                            // Twilio (non-secret parts)
+                            TWILIO_CODE_LENGTH: '6',
+                            TWILIO_STATUS_APPROVED: 'approved',
+                            TWILIO_STATUS_REJECTED: 'pending',
+                            TWILIO_CODE_EXPIRED: '20404',
+                            TEST_PHONES: '+306975975054,+306936007700,+306986763555',
+
+                            // EPPO Service
+                            EPPO_SERVICE_URL: 'http://127.0.0.1:4000',
+
+                            // Email Verification
+                            EMAIL_VERIFICATION_EXPIRY_HOURS: '24',
+                            EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS: '60',
+
+                            // Rate Limiting
+                            RATE_LIMIT_EMAIL_RESEND_WINDOW_MS: '300000',
+                            RATE_LIMIT_EMAIL_RESEND_MAX: '3',
+                            RATE_LIMIT_PHONE_VERIFY_WINDOW_MS: '600000',
+                            RATE_LIMIT_PHONE_VERIFY_MAX: '3',
+                            RATE_LIMIT_PHONE_ATTEMPT_WINDOW_MS: '900000',
+                            RATE_LIMIT_PHONE_ATTEMPT_MAX: '5',
+                            RATE_LIMIT_EMAIL_CHANGE_WINDOW_MS: '300000',
+                            RATE_LIMIT_EMAIL_CHANGE_MAX: '1',
+                            EMAIL_CHANGE_COOLDOWN_MS: '15552000000',
+                            RATE_LIMIT_REPORT_WINDOW_MS: '900000',
+                            RATE_LIMIT_REPORT_MAX: '5',
                         ]
                     } else if (env.DEPLOY_ENV == 'staging') {
                         env.REMOTE_HOST = params.TARGET_HOST ?: '10.10.99.1'
@@ -87,12 +130,55 @@ pipeline {
                         envConfigs = [
                             NODE_ENV: env.DEPLOY_ENV,
                             PORT: env.APP_PORT,
-                            LOG_LEVEL: 'debug',
-                            MAX_REQUESTS_PER_MINUTE: '1000',
-                            COOKIE_SECURE: 'false',
-                            ENABLE_RATE_LIMITING: 'false',
-                            MAX_FILE_SIZE: '10485760',
-                            SESSION_TIMEOUT: '3600000',
+
+                            // URLs
+                            WEB_URL: "https://${env.WEB_DOMAIN}",
+                            API_URL: "https://${env.API_DOMAIN}",
+
+                            // SMTP (non-secret parts)
+                            SMTP_HOST: 'mail.overpassconnect.com',
+                            SMTP_PORT: '587',
+                            SMTP_USER: '_testing@overpassconnect.com',
+                            SMTP_IS_STARTTLS: 'true',
+
+                            // Redis
+                            REDIS_HOST: 'localhost',
+                            REDIS_PORT: '6379',
+                            REDIS_DB: '0',
+                            REDIS_RATE_LIMIT_DB: '1',
+
+                            // Report Storage
+                            REPORT_STORAGE_TYPE: 'filesystem',
+                            REPORT_STORAGE_PATH: '/var/farmestly/reports',
+                            REPORT_EXPIRY_MINUTES: '30',
+                            REPORT_CLEANUP_INTERVAL_MINUTES: '5',
+
+                            // Twilio (non-secret parts)
+                            TWILIO_CODE_LENGTH: '6',
+                            TWILIO_STATUS_APPROVED: 'approved',
+                            TWILIO_STATUS_REJECTED: 'pending',
+                            TWILIO_CODE_EXPIRED: '20404',
+                            TEST_PHONES: '+306975975054,+306936007700,+306986763555',
+
+                            // EPPO Service
+                            EPPO_SERVICE_URL: 'http://127.0.0.1:4000',
+
+                            // Email Verification
+                            EMAIL_VERIFICATION_EXPIRY_HOURS: '24',
+                            EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS: '60',
+
+                            // Rate Limiting
+                            RATE_LIMIT_EMAIL_RESEND_WINDOW_MS: '300000',
+                            RATE_LIMIT_EMAIL_RESEND_MAX: '3',
+                            RATE_LIMIT_PHONE_VERIFY_WINDOW_MS: '600000',
+                            RATE_LIMIT_PHONE_VERIFY_MAX: '3',
+                            RATE_LIMIT_PHONE_ATTEMPT_WINDOW_MS: '900000',
+                            RATE_LIMIT_PHONE_ATTEMPT_MAX: '5',
+                            RATE_LIMIT_EMAIL_CHANGE_WINDOW_MS: '300000',
+                            RATE_LIMIT_EMAIL_CHANGE_MAX: '1',
+                            EMAIL_CHANGE_COOLDOWN_MS: '15552000000',
+                            RATE_LIMIT_REPORT_WINDOW_MS: '900000',
+                            RATE_LIMIT_REPORT_MAX: '5',
                         ]
                     } else {
                         error("Environment '${env.DEPLOY_ENV}' configuration not found")
@@ -285,11 +371,12 @@ Build: ${BUILD_NUMBER}
                     def configs = new groovy.json.JsonSlurper().parseText(env.ENV_CONFIGS)
                     
                     withCredentials([
-                        string(credentialsId: "${env.CRED_PREFIX}-mongodb-uri", variable: 'MONGODB_URI'),
-                        string(credentialsId: "${env.CRED_PREFIX}-jwt-secret", variable: 'JWT_SECRET'),
-                        string(credentialsId: "${env.CRED_PREFIX}-session-secret", variable: 'SESSION_SECRET'),
-                        string(credentialsId: "${env.CRED_PREFIX}-email-password", variable: 'EMAIL_PASSWORD'),
-                        string(credentialsId: "${env.CRED_PREFIX}-api-key", variable: 'API_KEY'),
+                        string(credentialsId: "${env.CRED_PREFIX}-smtp-pass", variable: 'SMTP_PASS'),
+                        string(credentialsId: "${env.CRED_PREFIX}-redis-password", variable: 'REDIS_PASSWORD'),
+                        string(credentialsId: "${env.CRED_PREFIX}-report-url-secret", variable: 'REPORT_URL_SECRET'),
+                        string(credentialsId: "${env.CRED_PREFIX}-twilio-account-sid", variable: 'TWILIO_ACCOUNT_SID'),
+                        string(credentialsId: "${env.CRED_PREFIX}-twilio-auth-token", variable: 'TWILIO_AUTH_TOKEN'),
+                        string(credentialsId: "${env.CRED_PREFIX}-twilio-service-sid", variable: 'TWILIO_SERVICE_SID'),
                     ]) {
                         def envLines = "# Generated by Jenkins Build ${BUILD_NUMBER}\n"
                         envLines += "# Environment: ${env.DEPLOY_ENV}\n"
@@ -300,13 +387,14 @@ Build: ${BUILD_NUMBER}
                         }
                         
                         envLines += "\n# Secrets\n"
-                        
+
                         def secrets = [
-                            'MONGODB_URI': MONGODB_URI,
-                            'JWT_SECRET': JWT_SECRET,
-                            'SESSION_SECRET': SESSION_SECRET,
-                            'EMAIL_PASSWORD': EMAIL_PASSWORD,
-                            'API_KEY': API_KEY,
+                            'SMTP_PASS': SMTP_PASS,
+                            'REDIS_PASSWORD': REDIS_PASSWORD,
+                            'REPORT_URL_SECRET': REPORT_URL_SECRET,
+                            'TWILIO_ACCOUNT_SID': TWILIO_ACCOUNT_SID,
+                            'TWILIO_AUTH_TOKEN': TWILIO_AUTH_TOKEN,
+                            'TWILIO_SERVICE_SID': TWILIO_SERVICE_SID,
                         ]
                         
                         secrets.each { key, value ->
