@@ -37,9 +37,9 @@ pipeline {
     }
     
     environment {
-	    SERVICE_NAME = 'myapp'
-        BACKEND_DIR = 'myapp-server'
-        FRONTEND_DIR = 'myapp-frontend'
+	    SERVICE_NAME = 'farmestly'
+        BACKEND_DIR = 'packages/farmestly-service'
+        FRONTEND_DIR = 'packages/farmestly-web'
         APP_USER = 'dev'
         APP_PORT = '5000'
         DEPLOY_DIR = "${WORKSPACE}/deploy_temp"
