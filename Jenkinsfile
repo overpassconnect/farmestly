@@ -189,7 +189,7 @@ Build: ${BUILD_NUMBER}
                         npm install
 
                         echo "Installing frontend dependencies..."
-                        cd ../${FRONTEND_DIR}
+                        cd ${WORKSPACE}/${FRONTEND_DIR}
                         npm install
 
                         echo "✓ All dependencies installed"
