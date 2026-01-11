@@ -77,8 +77,8 @@ pipeline {
                             SESSION_TIMEOUT: '7200000',
                         ]
                     } else if (env.DEPLOY_ENV == 'staging') {
-                        env.REMOTE_HOST = params.TARGET_HOST ?: '192.168.1.100'
-                        env.DEFAULT_BRANCH = params.GIT_BRANCH ?: 'develop'
+                        env.REMOTE_HOST = params.TARGET_HOST ?: '10.10.99.1'
+                        env.DEFAULT_BRANCH = params.GIT_BRANCH ?: 'main'
                         env.CRED_PREFIX = 'staging'
                         env.SSH_CRED_ID = 'staging-ssh-key'
                         env.WEB_DOMAIN = 'my.10-10-99-1.staging.overpassconnect.com'
