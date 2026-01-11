@@ -62,7 +62,7 @@ pipeline {
                         env.REMOTE_HOST = params.TARGET_HOST ?: 'prod.example.com'
                         env.DEFAULT_BRANCH = params.GIT_BRANCH ?: 'main'
                         env.CRED_PREFIX = 'production'
-                        env.SSH_CRED_ID = 'production-ssh-key'
+                        env.SSH_CRED_ID = 'jenkins-production-ssh-key'
                         env.WEB_DOMAIN = 'my.farmestlyprodtest.overpassconnect.com'
                         env.API_DOMAIN = 'api.farmestlyprodtest.overpassconnect.com'
 
@@ -80,7 +80,7 @@ pipeline {
                         env.REMOTE_HOST = params.TARGET_HOST ?: '10.10.99.1'
                         env.DEFAULT_BRANCH = params.GIT_BRANCH ?: 'main'
                         env.CRED_PREFIX = 'staging'
-                        env.SSH_CRED_ID = 'staging-ssh-key'
+                        env.SSH_CRED_ID = 'jenkins-staging-ssh-key'
                         env.WEB_DOMAIN = 'my.10-10-99-1.staging.overpassconnect.com'
                         env.API_DOMAIN = 'api.10-10-99-1.staging.overpassconnect.com'
 
