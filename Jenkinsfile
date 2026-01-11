@@ -817,12 +817,21 @@ Build: ${BUILD_NUMBER}
                         keyFileVariable: 'SSH_KEY'
                     )]) {
                         sh """
+                            # Ensure config directory exists on remote server
+                            ssh -i \${SSH_KEY} -o StrictHostKeyChecking=no \
+                                root@${env.REMOTE_HOST} \
+                                "mkdir -p /etc/${SERVICE_NAME} && chmod 755 /etc/${SERVICE_NAME}"
+
+                            # Copy environment configuration file
                             scp -i \${SSH_KEY} -o StrictHostKeyChecking=no \
                                 ${DEPLOY_DIR}/env.conf root@${env.REMOTE_HOST}:${env.ENV_FILE}
 
+                            # Set proper permissions
                             ssh -i \${SSH_KEY} -o StrictHostKeyChecking=no \
                                 root@${env.REMOTE_HOST} \
                                 "chmod 600 ${env.ENV_FILE} && chown root:root ${env.ENV_FILE}"
+
+                            echo "✓ Environment configuration deployed to ${env.ENV_FILE}"
                         """
                     }
                 }
