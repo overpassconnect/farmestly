@@ -367,9 +367,12 @@ Build: ${BUILD_NUMBER}
             steps {
                 script {
                     echo "Preparing ${env.DEPLOY_ENV} environment configuration..."
-                    
+
+                    // Ensure deploy directory exists
+                    sh "mkdir -p ${DEPLOY_DIR}"
+
                     def configs = new groovy.json.JsonSlurper().parseText(env.ENV_CONFIGS)
-                    
+
                     withCredentials([
                         string(credentialsId: "${env.CRED_PREFIX}-smtp-pass", variable: 'SMTP_PASS'),
                         string(credentialsId: "${env.CRED_PREFIX}-redis-password", variable: 'REDIS_PASSWORD'),
