@@ -161,9 +161,9 @@ Build: ${BUILD_NUMBER}
                         export NVM_DIR="$HOME/.nvm"
                         [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 
-                        # Install/use Node.js 18 (adjust version as needed)
-                        nvm install 18
-                        nvm use 18
+                        # Install/use Node.js 20
+                        nvm install 20
+                        nvm use 20
 
                         # Verify installation
                         node --version
@@ -182,7 +182,7 @@ Build: ${BUILD_NUMBER}
                     sh '''
                         export NVM_DIR="$HOME/.nvm"
                         [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-                        nvm use 18
+                        nvm use 20
 
                         echo "Installing backend dependencies..."
                         cd ${BACKEND_DIR}
@@ -209,7 +209,7 @@ Build: ${BUILD_NUMBER}
                         sh '''
                             export NVM_DIR="$HOME/.nvm"
                             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-                            nvm use 18
+                            nvm use 20
                             npm test || exit 1
                         '''
                     }
@@ -259,7 +259,7 @@ Build: ${BUILD_NUMBER}
                     sh '''
                         export NVM_DIR="$HOME/.nvm"
                         [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-                        nvm use 18
+                        nvm use 20
 
                         rm -rf dist
 
