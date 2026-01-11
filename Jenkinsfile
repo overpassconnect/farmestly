@@ -382,7 +382,7 @@ Build: ${BUILD_NUMBER}
                     // Ensure deploy directory exists
                     sh "mkdir -p ${DEPLOY_DIR}"
 
-                    def configs = new groovy.json.JsonSlurper().parseText(env.ENV_CONFIGS)
+                    def configs = new HashMap(new groovy.json.JsonSlurper().parseText(env.ENV_CONFIGS))
                     echo "Parsed ${configs.size()} configuration entries"
 
                     echo "About to load credentials..."
