@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "start": "webpack --watch --mode development --env buildroot=/var/www/html/",
-    "build": "webpack --mode production --env buildroot=/var/www/html/"
+    "build": "webpack --mode production"
   },
   "devDependencies": {
     "@babel/core": "^7.28.5",
