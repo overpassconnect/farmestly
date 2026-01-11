@@ -186,11 +186,11 @@ Build: ${BUILD_NUMBER}
 
                         echo "Installing backend dependencies..."
                         cd ${BACKEND_DIR}
-                        npm ci
+                        npm install
 
                         echo "Installing frontend dependencies..."
                         cd ../${FRONTEND_DIR}
-                        npm ci
+                        npm install
 
                         echo "✓ All dependencies installed"
                     '''
@@ -729,7 +729,7 @@ Build: ${BUILD_NUMBER}
                         sh """
                             ssh -i \${SSH_KEY} -o StrictHostKeyChecking=no \
                                 root@${env.REMOTE_HOST} \
-                                "su - ${APP_USER} -c 'cd ${env.REMOTE_DIR} && source ~/.nvm/nvm.sh && npm ci --production'"
+                                "su - ${APP_USER} -c 'cd ${env.REMOTE_DIR} && source ~/.nvm/nvm.sh && npm install --production'"
 
                             ssh -i \${SSH_KEY} -o StrictHostKeyChecking=no \
                                 root@${env.REMOTE_HOST} '
