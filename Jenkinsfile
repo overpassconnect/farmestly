@@ -372,7 +372,6 @@ Build: ${BUILD_NUMBER}
                     // List expected credential IDs
                     def expectedCreds = [
                         "${env.CRED_PREFIX}-smtp-pass",
-                        "${env.CRED_PREFIX}-redis-password",
                         "${env.CRED_PREFIX}-report-url-secret",
                         "${env.CRED_PREFIX}-twilio-account-sid",
                         "${env.CRED_PREFIX}-twilio-auth-token",
@@ -390,7 +389,6 @@ Build: ${BUILD_NUMBER}
 
                     withCredentials([
                         string(credentialsId: "${env.CRED_PREFIX}-smtp-pass", variable: 'SMTP_PASS'),
-                        string(credentialsId: "${env.CRED_PREFIX}-redis-password", variable: 'REDIS_PASSWORD'),
                         string(credentialsId: "${env.CRED_PREFIX}-report-url-secret", variable: 'REPORT_URL_SECRET'),
                         string(credentialsId: "${env.CRED_PREFIX}-twilio-account-sid", variable: 'TWILIO_ACCOUNT_SID'),
                         string(credentialsId: "${env.CRED_PREFIX}-twilio-auth-token", variable: 'TWILIO_AUTH_TOKEN'),
@@ -410,7 +408,6 @@ Build: ${BUILD_NUMBER}
 
                         def secrets = [
                             'SMTP_PASS': SMTP_PASS,
-                            'REDIS_PASSWORD': REDIS_PASSWORD,
                             'REPORT_URL_SECRET': REPORT_URL_SECRET,
                             'TWILIO_ACCOUNT_SID': TWILIO_ACCOUNT_SID,
                             'TWILIO_AUTH_TOKEN': TWILIO_AUTH_TOKEN,

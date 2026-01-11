@@ -22,7 +22,7 @@ async function initializeRedisClient() {
 
 	const host = process.env.REDIS_HOST || 'localhost';
 	const port = process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379;
-	const password = process.env.REDIS_PASSWORD || undefined;
+	const password = undefined;
 	const db = process.env.REDIS_RATE_LIMIT_DB
 		? parseInt(process.env.REDIS_RATE_LIMIT_DB, 10)
 		: (process.env.REDIS_DB ? parseInt(process.env.REDIS_DB, 10) + 1 : 1);
